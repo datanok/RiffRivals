@@ -7,7 +7,6 @@ import type {
 } from '../../../shared/types/music.js';
 import { DrumKit } from './DrumKit.js';
 import { Piano } from './Piano.js';
-import { Bass } from './Bass.js';
 import { Synth } from './Synth.js';
 import { DhwaniAudioEngine } from '../../audio/DhwaniAudioEngine.js';
 import { BrowserCompatibility } from '../../utils/errorHandling.js';
@@ -41,13 +40,6 @@ const INSTRUMENTS: InstrumentConfig[] = [
     icon: '🎹',
     description: 'CREATE EPIC MELODIES AND HARMONIES',
     color: '#4ecdc4',
-  },
-  {
-    type: 'bass',
-    name: '🎸 BASS DESTROYER',
-    icon: '🎸',
-    description: 'LAY DOWN THE FOUNDATION WITH DEEP BASS',
-    color: '#45b7d1',
   },
   {
     type: 'synth',
@@ -192,26 +184,6 @@ export const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
     onNotePlay('piano', note, velocity);
   };
 
-  const handleBassPlay = (bassString: BassString, fret: number) => {
-    // Convert bass string and fret to note name
-    const stringNotes = {
-      'E': ['E1', 'F1', 'F#1', 'G1', 'G#1', 'A1', 'A#1', 'B1', 'C2', 'C#2', 'D2', 'D#2', 'E2'],
-      'A': ['A1', 'A#1', 'B1', 'C2', 'C#2', 'D2', 'D#2', 'E2', 'F2', 'F#2', 'G2', 'G#2', 'A2'],
-      'D': ['D2', 'D#2', 'E2', 'F2', 'F#2', 'G2', 'G#2', 'A2', 'A#2', 'B2', 'C3', 'C#3', 'D3'],
-      'G': ['G2', 'G#2', 'A2', 'A#2', 'B2', 'C3', 'C#3', 'D3', 'D#3', 'E3', 'F3', 'F#3', 'G3'],
-    };
-
-    const note = stringNotes[bassString][fret];
-    if (note) {
-      // Play audio if engine is ready
-      if (audioEngineRef.current && audioInitialized) {
-        audioEngineRef.current.playNote('bass', note, 0.8);
-      }
-      // Also call the callback for recording/tracking
-      onNotePlay('bass', note, 0.8);
-    }
-  };
-
   const handleSynthPlay = (note: string, velocity: number, waveform: WaveformType) => {
     // Play audio if engine is ready
     if (audioEngineRef.current && audioInitialized) {
@@ -286,15 +258,6 @@ export const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
             isRecording={isRecording}
             activeNotes={activeNotes}
             octave={4}
-          />
-        );
-      case 'bass':
-        return (
-          <Bass
-            onNotePlay={handleBassPlay}
-            isRecording={isRecording}
-            selectedFret={0}
-            activeNotes={activeNotes}
           />
         );
       case 'synth':

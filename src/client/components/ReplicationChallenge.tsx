@@ -354,7 +354,7 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
         note,
         velocity,
         startTime: currentTime / 1000, // Convert to seconds
-        duration: 0.5, // Default duration
+        duration: 0, // Instant button press (no long notes)
       };
 
       setRecordedNotes((prev) => [...prev, newNote]);

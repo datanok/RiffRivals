@@ -74,9 +74,9 @@ const HIT_WINDOW = 100;
 const LANE_WIDTH = 80;
 
 const DIFFICULTY_SETTINGS = {
-  easy: { noteInterval: 2000, noteDuration: 1000, speed: 150 },
-  medium: { noteInterval: 1500, noteDuration: 800, speed: 200 },
-  hard: { noteInterval: 1000, noteDuration: 600, speed: 250 },
+  easy: { noteInterval: 2000, noteDuration: 0, speed: 150 },
+  medium: { noteInterval: 1500, noteDuration: 0, speed: 200 },
+  hard: { noteInterval: 1000, noteDuration: 0, speed: 250 },
 };
 
 export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
@@ -385,7 +385,7 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
       }
     }
 
-    // Process notes - check for missed notes and duration completion
+    // Process notes - check for missed notes
     let allNotesProcessed = false;
     let noActiveNotes = false;
 
@@ -394,35 +394,6 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
         .map((note) => {
           const progress = (now - note.startTime) / 1000;
           const position = progress * settings.speed;
-
-          // Check if note should be released based on duration
-          if (note.isBeingHeld && note.hitStartTime) {
-            const heldDuration = now - note.hitStartTime;
-            if (heldDuration >= note.duration) {
-              // Note duration completed, release it
-              const durationDiff = Math.abs(heldDuration - note.duration);
-              const durationAccuracy = Math.max(0, 100 - (durationDiff / note.duration) * 100);
-
-              // Award bonus points for good duration accuracy
-              let durationBonus = 0;
-              if (durationAccuracy >= 90) {
-                durationBonus = 50;
-              } else if (durationAccuracy >= 75) {
-                durationBonus = 25;
-              } else if (durationAccuracy >= 50) {
-                durationBonus = 10;
-              }
-
-              if (durationBonus > 0) {
-                setScore((prev) => prev + durationBonus);
-                setLastHitAccuracy(`DURATION: ${Math.round(durationAccuracy)}%`);
-                setTimeout(() => setLastHitAccuracy(''), 500);
-              }
-
-              // Mark as completed (will be filtered out)
-              return { ...note, hit: true, isBeingHeld: false };
-            }
-          }
 
           // Check if note missed hit window
           if (position > 400 + HIT_WINDOW && !note.hit && !note.missed) {
@@ -443,8 +414,8 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
           return note;
         })
         .filter((note) => {
-          // Remove completed duration notes
-          if (note.hit && !note.isBeingHeld) return false;
+          // Remove hit notes immediately
+          if (note.hit) return false;
 
           const progress = (now - note.startTime) / 1000;
           const position = progress * settings.speed;
@@ -804,12 +775,9 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
           newSet.delete(lane);
           return newSet;
         });
-
-        // Handle note release
-        handleNoteRelease(lane);
       }
     },
-    [isPlaying, heldKeys, handleNoteRelease]
+    [isPlaying, heldKeys]
   );
 
   const handleTouchStart = useCallback(
@@ -851,10 +819,9 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
           newSet.delete(lane);
           return newSet;
         });
-        handleNoteRelease(lane);
       }
     },
-    [isPlaying, heldKeys, handleNoteRelease]
+    [isPlaying, heldKeys]
   );
 
   useEffect(() => {
@@ -1001,71 +968,13 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
         let color = '#00d9ff';
         if (note.missed) color = '#ff0064';
         else if (inWindow) color = '#00ff00';
-        else if (note.isBeingHeld) color = '#ffff00'; // Yellow for held notes
-
-        // Draw note duration trail with enhanced UX
-        if (note.duration > 0) {
-          const durationHeight = (note.duration / 1000) * settings.speed;
-          const trailY = y - durationHeight;
-
-          // Calculate progress if note is being held
-          let holdProgress = 0;
-          if (note.isBeingHeld && note.hitStartTime) {
-            const heldDuration = now - note.hitStartTime;
-            holdProgress = Math.min(1, heldDuration / note.duration);
-          }
-
-          // Duration trail gradient with progress indication
-          const trailGradient = ctx.createLinearGradient(x, trailY, x, y);
-          if (note.isBeingHeld) {
-            // Show progress with different colors
-            trailGradient.addColorStop(0, 'rgba(255, 255, 0, 0.2)');
-            trailGradient.addColorStop(holdProgress, 'rgba(0, 255, 0, 0.8)');
-            trailGradient.addColorStop(holdProgress + 0.01, 'rgba(255, 255, 0, 0.8)');
-            trailGradient.addColorStop(1, 'rgba(255, 255, 0, 0.8)');
-          } else {
-            trailGradient.addColorStop(0, 'rgba(0, 217, 255, 0.3)');
-            trailGradient.addColorStop(1, 'rgba(0, 217, 255, 0.8)');
-          }
-
-          ctx.fillStyle = trailGradient;
-          ctx.fillRect(x - 15, trailY, 30, durationHeight);
-
-          // Duration trail border with pulsing effect for held notes
-          if (note.isBeingHeld) {
-            const pulseIntensity = 0.5 + 0.5 * Math.sin(now / 100);
-            ctx.strokeStyle = `rgba(255, 255, 0, ${pulseIntensity})`;
-            ctx.lineWidth = 3;
-          } else {
-            ctx.strokeStyle = '#00d9ff';
-            ctx.lineWidth = 2;
-          }
-          ctx.strokeRect(x - 15, trailY, 30, durationHeight);
-
-          // Progress indicator for held notes
-          if (note.isBeingHeld && holdProgress > 0) {
-            const progressHeight = durationHeight * holdProgress;
-            ctx.fillStyle = 'rgba(0, 255, 0, 0.6)';
-            ctx.fillRect(x - 12, y - progressHeight, 24, progressHeight);
-          }
-
-          // Duration text indicator
-          if (note.duration > 500) {
-            // Only show for notes longer than 0.5s
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 10px monospace';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            const durationText = `${(note.duration / 1000).toFixed(1)}s`;
-            ctx.fillText(durationText, x, trailY - 10);
-          }
-        }
+        else if (note.hit) color = '#4ecdc4'; // Hit notes
 
         // Note glow
         if (inWindow && !note.missed) {
           ctx.shadowBlur = 15;
           ctx.shadowColor = '#00ff00';
-        } else if (note.isBeingHeld) {
+        } else if (note.hit) {
           ctx.shadowBlur = 15;
           ctx.shadowColor = '#ffff00';
         } else {

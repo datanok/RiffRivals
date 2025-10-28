@@ -1,51 +1,57 @@
-# Dhwani - Collaborative Music Creation on Reddit
+# RiffRivals – Rhythm Battles Built by the Community
 
-**Dhwani** is a revolutionary collaborative music creation app built on Reddit's Devvit platform that transforms Reddit's threaded reply system into an asynchronous jam session experience. Create musical "Riffs" as custom posts, layer additional instruments through replies, and build complex musical compositions through Reddit's natural threading structure.
+**RiffRivals** is a Reddit-integrated rhythm platform where users make challenges for each other — not against the computer. Built on Reddit's Devvit platform, RiffRivals turns every post into a playable rhythm challenge that the community can attempt, score, and remix.
 
-## What is Dhwani?
+## What is RiffRivals?
 
-Dhwani (Sanskrit for "sound") is the world's first Reddit-native music collaboration platform that turns every Reddit thread into a potential musical masterpiece. This interactive web app runs directly within Reddit posts, allowing users to create, share, and collaborate on music without leaving the platform.
+RiffRivals is a rhythm battle platform where creativity meets competition. Users create two types of challenges:
 
-The app features a complete digital audio workstation (DAW) built with React and Tone.js, offering three professional virtual instruments: an 8-piece drum kit, a polyphonic piano with 7-octave range, and a 4-string bass guitar with 13-fret capability. Users can record musical performances in real-time, layer tracks together, and share their creations as Reddit posts that other users can build upon through the comment system.
+1. **Replication Challenges**: Record a short musical loop on virtual instruments (drums, piano, or synth), and others must match your rhythm accuracy and timing
+2. **Falling Tiles Charts**: Design your own rhythm game levels like Beat Saber or Osu! using a visual beatmap editor
+
+The app features professional browser-based virtual instruments built with React and Tone.js: an 8-piece drum kit, a polyphonic piano, and an electronic synth. Every challenge is published as a Reddit post, where the community can play, score, upvote, and remix the best creations.
 
 ### Core Features
 
-- **🎵 Create Musical Riffs**: Compose interactive musical pieces using professional-grade browser-based virtual instruments powered by Tone.js Web Audio synthesis
-- **🎤 Jam Together**: Add musical layers to existing posts through Reddit's reply system for true collaborative composition with automatic track synchronization
-- **🎼 Build Complex Compositions**: Use Reddit's threading to create multi-layered musical collaborations with unlimited depth and real-time playback
-- **🏆 Challenge Yourself**: Replicate existing riffs to improve your musical skills with precision scoring based on note accuracy and timing precision
-- **🌍 Share & Discover**: Experience music creation as a social, community-driven activity integrated with Reddit's voting and discussion system
-- **🎚️ Advanced Audio Engine**: Real-time synthesis with sub-millisecond timing precision, multi-track playback, and professional mixing controls
+- **🎸 Create Mode**: Record short musical loops (10-20 seconds) on drums, piano, or synth. Your recording becomes a replication challenge where others must match your rhythm and timing
+- **🎼 Chart Creator Mode**: Build your own Falling Tiles level using a visual beatmap editor. Place notes, set BPM, test your chart, and publish for others to play
+- **🎮 Play Challenges**: Attempt community-created challenges in two styles:
+  - **Replication**: Listen and play back the rhythm as accurately as possible
+  - **Falling Tiles**: Hit notes as they fall down the screen, Guitar Hero style
+- **🏆 Compete & Score**: Every attempt is scored on timing accuracy and note precision. Climb the leaderboards and prove your rhythm skills
+- **🔄 Remix System**: Found a great challenge? Remix it with your own twist and publish as a new challenge
+- **🌍 Community-Driven**: The best challenges rise to the top through Reddit's voting system. Every post is a playable rhythm game
 
-## What Makes Dhwani Innovative?
+## What Makes RiffRivals Innovative?
 
-### 🚀 **World's First Reddit-Native Music Platform**
+### 🚀 **Player-Made Rhythm Games**
 
-- **Revolutionary Threading**: First app to use Reddit's comment system for musical collaboration, turning every thread into a potential symphony
-- **Native Integration**: Musical data stored directly in Reddit posts and comments using Redis, making compositions part of Reddit's permanent content ecosystem
-- **Social Music Making**: Seamless integration with Reddit's community features, voting system, and discussion threads
-- **Persistent Compositions**: Every musical creation becomes discoverable, shareable content that can be upvoted, commented on, and built upon by the community
+- **Community as Game Designers**: Every user can create playable rhythm challenges. The community decides what's fun through voting
+- **Two Creative Paths**: Record live performances OR design levels with a visual editor. Different skills, same competitive spirit
+- **Must Clear to Publish**: Chart creators must successfully play through their own level before posting. Ensures every challenge is fair and playable
+- **Native Reddit Integration**: Challenges are Reddit posts stored in Redis. Play, comment, vote, and discuss without leaving Reddit
 
 ### 🎹 **Professional Browser-Based Virtual Instruments**
 
-- **🥁 Advanced Drum Kit**: 8-piece electronic drum set (Kick, Snare, Hi-Hat, Open Hat, Crash, Ride, Tom 1, Tom 2) with velocity-sensitive pads and realistic Tone.js synthesis using MembraneSynth and NoiseSynth
-- **🎹 Polyphonic Piano**: Full chromatic keyboard with 7-octave range (Octave 1-7), authentic piano sounds using PolySynth, and chord support for complex harmonies with built-in reverb
-- **🎸 4-String Bass Guitar**: Realistic bass with 13-fret range (0-12 frets) and standard tuning (E-A-D-G strings) using MonoSynth with low-pass filtering and sub-bass emphasis
-- **🔊 Tone.js Audio Engine**: Professional-grade Web Audio API synthesis delivering studio-quality sound directly in the browser with automatic audio context management
+- **🥁 Advanced Drum Kit**: 8-piece electronic drum set (Kick, Snare, Hi-Hat, Open Hat, Crash, Ride, Tom 1, Tom 2) with velocity-sensitive pads and realistic Tone.js synthesis
+- **🎹 Polyphonic Piano**: Full chromatic keyboard with authentic piano sounds using PolySynth and chord support for complex melodies
+- **🎺 Electronic Synth**: Versatile synthesizer for creating electronic sounds and lead melodies
+- **🔊 Tone.js Audio Engine**: Professional-grade Web Audio API synthesis delivering studio-quality sound directly in the browser
 
-### 🎼 **Asynchronous Musical Collaboration**
+### 🎼 **Visual Chart Creator**
 
-- **Real-Time Recording**: Record musical parts that automatically sync with existing compositions using precise timing algorithms with sub-millisecond accuracy
-- **Thread-Based Building**: Build on others' musical ideas through Reddit's familiar reply system, creating branching musical conversations with automatic track layering
-- **Multi-Instrument Arrangements**: Create complex orchestrations through community collaboration with unlimited layering and automatic composition management
-- **Version Control**: Each reply creates a new musical version while preserving the original composition and full collaboration history in Redis storage
+- **Timeline Grid Editor**: Place notes on a BPM-synced timeline with snap-to-grid functionality
+- **Multi-Lane System**: 4-6 lanes for different drum sounds or melodic notes
+- **Real-Time Preview**: Test your chart by playing it in Falling Tiles mode before publishing
+- **Difficulty Auto-Calculation**: System analyzes note density, BPM, and complexity to assign difficulty ratings
+- **Validation System**: Ensures charts have proper timing alignment, reasonable note density, and no overlapping notes
 
-### 🏆 **Gamified Musical Learning**
+### 🏆 **Competitive Scoring System**
 
-- **Challenge Mode**: Replicate existing riffs with precision scoring based on note accuracy (correct notes played) and timing precision (rhythm accuracy within 100ms tolerance)
-- **Visual Feedback**: Real-time visual cues during recording and playback with instrument highlighting, note visualization, and active track indicators
-- **Community Scoring**: Share challenge scores (S, A+, A, A-, B+, B, B-, C+, C, D grades) as Reddit comments for community recognition with detailed accuracy breakdowns
-- **Skill Development**: Progressive difficulty through community-created challenges with leaderboards and achievement tracking stored in Redis
+- **Dual Scoring Metrics**: Every challenge is scored on both timing accuracy (rhythm precision) and note accuracy (correct notes played)
+- **Leaderboards**: Compete for the top spot on each challenge. Scores are stored in Redis and displayed on challenge posts
+- **Grade System**: Earn grades from S-rank (perfect) down to D-rank based on your performance
+- **Remix Challenges**: Take any existing challenge and create your own variation. Original creator gets credit through parentPostId linking
 
 ### 🔧 **Advanced Audio Technology**
 

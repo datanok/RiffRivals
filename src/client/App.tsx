@@ -28,7 +28,6 @@ type SynthNote =
   | 'B4'
   | 'C5';
 import { RiffPost } from './components/RiffPost.js';
-import { JamReply } from './components/JamReply.js';
 import { CompositionManager } from './components/CompositionManager.js';
 import { InstrumentSelector } from './components/instruments/InstrumentSelector.js';
 import { ErrorBoundary } from './components/ErrorBoundary.js';
@@ -40,11 +39,15 @@ import { VisualEffects } from './components/VisualEffects.js';
 import { ChallengeSelector } from './components/ChallengeSelector.js';
 import { ReplicationChallenge } from './components/ReplicationChallenge.js';
 import { ChallengeResults } from './components/ChallengeResults.js';
-import { Leaderboard } from './components/Leaderboard.js';
 import { FallingNotesChallenge } from './components/FallingNotesChallenge.js';
+import { SimplifiedCreateMode } from './components/SimplifiedCreateMode.js';
+import { ChartEditor } from './components/ChartEditor.js';
+import { RemixChallenge } from './components/RemixChallenge.js';
 import { ErrorHandler, type DhwaniError } from './utils/errorHandling.js';
+import { DynamicSplashScreen } from './components/DynamicSplashScreen.js';
 import { playButtonClick } from './utils/audioFeedback.js';
 import { createDefaultChallenges } from './utils/improved_predefined_songs.js';
+import type { ChartData } from '../shared/types/music.js';
 
 // Initialize predefined challenges using the improved system
 const initializeChallenges = () => {
@@ -54,7 +57,7 @@ const initializeChallenges = () => {
 // Local difficulty calculation (temporary until shared utils are properly configured)
 const calculateChallengeMetadata = (
   track: TrackData,
-  challengeType: 'falling_notes' | 'replication' | 'both',
+  challengeType: ChallengeType | 'both', // Support legacy 'both' type
   baseDifficulty: 'easy' | 'medium' | 'hard' | 'expert' | 'auto'
 ) => {
   const { notes, instrument, duration } = track;
@@ -79,7 +82,6 @@ const calculateChallengeMetadata = (
   const instrumentWeights: Record<InstrumentType, number> = {
     drums: 1.0,
     piano: 1.2,
-    bass: 1.1,
     synth: 1.3,
   };
 
@@ -101,7 +103,7 @@ const calculateChallengeMetadata = (
   const adjustedDifficulty = calculatedDifficulty * (baseMultipliers[baseDifficulty] || 1.0);
 
   const scoringWeights =
-    challengeType === 'falling_notes'
+    challengeType === 'falling_tiles'
       ? { timing: 0.7, accuracy: 0.3 }
       : challengeType === 'replication'
         ? { timing: 0.3, accuracy: 0.7 }
@@ -134,11 +136,12 @@ type AppState = {
   currentPostId: string | null;
   currentComposition: CompositionData | null;
   username: string | null;
+  remixParentPostId: string | null; // For remix mode
   // Challenge system state
   availableChallenges: CompositionData[];
   selectedChallenge: CompositionData | null;
   selectedLayerIndex: number; // Which instrument layer to play
-  currentChallengeType: 'falling_notes' | 'replication';
+  currentChallengeType: ChallengeType; // 'replication' | 'falling_tiles'
   challengeScore: ChallengeScore | null;
   personalBest: ChallengeScore | null;
   leaderboardScores: ChallengeScore[];
@@ -610,9 +613,7 @@ const CreateMode: React.FC<{ onCompositionCreate: (composition: CompositionData)
 
   // Challenge mode state
   const [isChallengeMode, setIsChallengeMode] = useState(false);
-  const [challengeType, setChallengeType] = useState<'falling_notes' | 'replication' | 'both'>(
-    'both'
-  );
+  const [challengeType, setChallengeType] = useState<ChallengeType | 'both'>('both');
   const [baseDifficulty, setBaseDifficulty] = useState<'easy' | 'medium' | 'hard' | 'auto'>('auto');
   const [calculatedDifficulty, setCalculatedDifficulty] = useState<number>(0);
 
@@ -715,13 +716,17 @@ const CreateMode: React.FC<{ onCompositionCreate: (composition: CompositionData)
       const challengeMetadata = calculateChallengeMetadata(newTrack, challengeType, baseDifficulty);
       setCalculatedDifficulty(challengeMetadata.adjustedDifficulty);
 
+      // Convert 'both' to a proper ChallengeType
+      const finalChallengeType: ChallengeType =
+        challengeType === 'both' ? 'falling_tiles' : challengeType;
+
       // Update composition with challenge settings
       const updatedComposition = {
         ...composition,
         metadata: {
           ...composition.metadata,
           challengeSettings: {
-            challengeType,
+            challengeType: finalChallengeType,
             baseDifficulty,
             calculatedDifficulty: challengeMetadata.calculatedDifficulty,
             scoringWeights: challengeMetadata.scoringWeights,
@@ -975,7 +980,7 @@ const CreateMode: React.FC<{ onCompositionCreate: (composition: CompositionData)
                     CHALLENGE TYPE
                   </label>
                   <div className="flex gap-2">
-                    {(['falling_notes', 'replication', 'both'] as const).map((type) => (
+                    {(['falling_tiles', 'replication', 'both'] as const).map((type) => (
                       <button
                         key={type}
                         onClick={() => setChallengeType(type)}
@@ -1123,15 +1128,16 @@ const CreateMode: React.FC<{ onCompositionCreate: (composition: CompositionData)
 
 export const App = () => {
   const [appState, setAppState] = useState<AppState>({
-    mode: 'create',
+    mode: 'home',
     currentPostId: null,
     currentComposition: null,
     username: null,
+    remixParentPostId: null,
     // Challenge system state
     availableChallenges: initializeChallenges(),
     selectedChallenge: null,
     selectedLayerIndex: 0,
-    currentChallengeType: 'falling_notes',
+    currentChallengeType: 'replication',
     challengeScore: null,
     personalBest: null,
     leaderboardScores: [],
@@ -1203,6 +1209,28 @@ export const App = () => {
     };
   }, [audioInitialized]);
 
+  // Listen for remix events from RiffPost
+  useEffect(() => {
+    const handleRemixEvent = (event: Event) => {
+      const customEvent = event as CustomEvent<{ postId: string; composition: CompositionData }>;
+      const { postId, composition } = customEvent.detail;
+
+      setAppState((prev) => ({
+        ...prev,
+        mode: 'remix',
+        remixParentPostId: postId,
+        currentComposition: composition,
+        currentPostId: postId,
+      }));
+    };
+
+    window.addEventListener('riffrivals:remix', handleRemixEvent);
+
+    return () => {
+      window.removeEventListener('riffrivals:remix', handleRemixEvent);
+    };
+  }, []);
+
   // Initialize app and get user context
   useEffect(() => {
     const initializeApp = async () => {
@@ -1250,11 +1278,11 @@ export const App = () => {
             const urlParams = new URLSearchParams(window.location.search);
             const mode = urlParams.get('mode') as UIMode;
 
-            if (mode === 'jam' || mode === 'challenge') {
+            // Allow specific modes from URL parameters
+            if (mode && ['create', 'chart_creator', 'challenge_select', 'remix'].includes(mode)) {
               setAppState((prev) => ({ ...prev, mode }));
-            } else {
-              setAppState((prev) => ({ ...prev, mode: 'playback' }));
             }
+            // Otherwise stay on 'home' mode (default) - let user choose what to do
           }
         }
       } catch (err: unknown) {
@@ -1284,40 +1312,10 @@ export const App = () => {
     setError(null);
   }, []);
 
-  const handleJamRequest = useCallback((composition: CompositionData) => {
-    setAppState((prev) => ({
-      ...prev,
-      mode: 'jam',
-      currentComposition: composition,
-    }));
-  }, []);
-
-  const handleJamReplySubmit = useCallback((success: boolean, message?: string) => {
-    if (success) {
-      // Return to playback mode and refresh
-      setAppState((prev) => ({
-        ...prev,
-        mode: 'playback',
-        currentComposition: null,
-      }));
-
-      // Show success message
-      alert(message || 'Jam reply posted successfully!');
-    } else {
-      const dhwaniError = ErrorHandler.createError(
-        'reddit_api_error',
-        message || 'Failed to post jam reply',
-        undefined,
-        'medium'
-      );
-      setError(dhwaniError);
-    }
-  }, []);
-
   const handleCancel = useCallback(() => {
     setAppState((prev) => ({
       ...prev,
-      mode: prev.currentPostId ? 'playback' : 'create',
+      mode: 'home',
       currentComposition: null,
     }));
     setError(null);
@@ -1348,16 +1346,15 @@ export const App = () => {
 
   // Challenge system handlers
   const handleChallengeSelect = useCallback(
-    (challenge: CompositionData, challengeType: ChallengeType) => {
-      if (challengeType === 'both') {
-        // For 'both' type, default to falling_notes
-        challengeType = 'falling_notes';
-      }
+    (challenge: CompositionData, challengeType: ChallengeType | 'both') => {
+      const finalChallengeType: ChallengeType =
+        challengeType === 'both' ? 'falling_tiles' : challengeType;
+
       setAppState((prev) => ({
         ...prev,
         selectedChallenge: challenge,
-        currentChallengeType: challengeType as 'falling_notes' | 'replication',
-        mode: challengeType === 'falling_notes' ? 'falling_notes' : 'replication_challenge',
+        currentChallengeType: finalChallengeType,
+        mode: finalChallengeType === 'falling_tiles' ? 'falling_notes' : 'replication_challenge',
       }));
     },
     []
@@ -1376,7 +1373,7 @@ export const App = () => {
       ...prev,
       challengeScore: null,
       mode:
-        prev.currentChallengeType === 'falling_notes' ? 'falling_notes' : 'replication_challenge',
+        prev.currentChallengeType === 'falling_tiles' ? 'falling_notes' : 'replication_challenge',
     }));
   }, []);
 
@@ -1478,17 +1475,17 @@ export const App = () => {
                   'repeating-linear-gradient(45deg, #ff6b6b, #ff6b6b 10px, #4ecdc4 10px, #4ecdc4 20px) 1',
               }}
             >
-              <div className="w-full px-4 py-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+              <div className="w-full px-2 sm:px-4 py-3 sm:py-4">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3">
                     <h1
-                      className="text-3xl font-bold text-white drop-shadow-lg"
-                      style={{ textShadow: '4px 4px 0px #ff6b6b, 8px 8px 0px #4ecdc4' }}
+                      className="text-xl sm:text-2xl md:text-3xl font-bold text-white drop-shadow-lg"
+                      style={{ textShadow: '2px 2px 0px #ff6b6b, 4px 4px 0px #4ecdc4' }}
                     >
-                      🎮 RiffRivals
+                      RiffRivals
                     </h1>
                     <span
-                      className="text-sm text-purple-200 font-medium"
+                      className="hidden sm:inline text-xs text-purple-200 font-medium"
                       style={{ fontFamily: "'Press Start 2P', monospace", fontSize: '8px' }}
                     >
                       ARCADE MUSIC BATTLE
@@ -1496,36 +1493,84 @@ export const App = () => {
                   </div>
 
                   {appState.username && (
-                    <div className="flex items-center gap-4">
-                      <span className="text-sm text-purple-100 font-medium">
+                    <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 w-full sm:w-auto">
+                      <span className="text-xs sm:text-sm text-purple-100 font-medium">
                         Player:{' '}
                         <span className="font-bold text-yellow-300">u/{appState.username}</span>
                       </span>
 
                       {/* Mode Navigation */}
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-wrap justify-center">
+                        <button
+                          onClick={() => {
+                            playButtonClick();
+                            handleModeChange('home');
+                          }}
+                          className={`
+                      px-3 sm:px-4 py-2 text-xs font-bold transition-all transform hover:scale-105 shadow-lg
+                      ${
+                        appState.mode === 'home'
+                          ? 'bg-gradient-to-r from-purple-400 to-pink-500 text-white'
+                          : 'bg-gradient-to-r from-gray-600 to-gray-700 text-gray-200 hover:from-gray-500 hover:to-gray-600'
+                      }
+                    `}
+                          style={{
+                            fontFamily: "'Press Start 2P', monospace",
+                            fontSize: '7px',
+                            border: '2px solid #333',
+                            boxShadow: '3px 3px 0px #333',
+                            borderRadius: '0px',
+                          }}
+                        >
+                          HOME
+                        </button>
+
                         <button
                           onClick={() => {
                             playButtonClick();
                             handleModeChange('create');
                           }}
                           className={`
-                      px-4 py-2 text-sm rounded-lg font-bold transition-all transform hover:scale-105 shadow-lg
+                      px-3 sm:px-4 py-2 text-xs font-bold transition-all transform hover:scale-105 shadow-lg
                       ${
-                        appState.mode === 'create'
+                        appState.mode === 'create' || appState.mode === 'replication_challenge'
                           ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white'
                           : 'bg-gradient-to-r from-gray-600 to-gray-700 text-gray-200 hover:from-gray-500 hover:to-gray-600'
                       }
                     `}
                           style={{
                             fontFamily: "'Press Start 2P', monospace",
-                            fontSize: '8px',
+                            fontSize: '7px',
                             border: '2px solid #333',
-                            boxShadow: '4px 4px 0px #333',
+                            boxShadow: '3px 3px 0px #333',
                             borderRadius: '0px',
                           }}
                         >
-                          🎮 CREATE
+                          CREATE
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            playButtonClick();
+                            handleModeChange('chart_creator');
+                          }}
+                          className={`
+                      px-3 sm:px-4 py-2 text-xs font-bold transition-all transform hover:scale-105 shadow-lg
+                      ${
+                        appState.mode === 'chart_creator'
+                          ? 'bg-gradient-to-r from-green-400 to-cyan-500 text-white'
+                          : 'bg-gradient-to-r from-gray-600 to-gray-700 text-gray-200 hover:from-gray-500 hover:to-gray-600'
+                      }
+                    `}
+                          style={{
+                            fontFamily: "'Press Start 2P', monospace",
+                            fontSize: '7px',
+                            border: '2px solid #333',
+                            boxShadow: '3px 3px 0px #333',
+                            borderRadius: '0px',
+                          }}
+                        >
+                          CHART
                         </button>
 
                         <button
@@ -1534,51 +1579,23 @@ export const App = () => {
                             handleModeChange('challenge_select');
                           }}
                           className={`
-                        px-4 py-2 text-sm rounded-lg font-bold transition-all transform hover:scale-105 shadow-lg
+                        px-3 sm:px-4 py-2 text-xs font-bold transition-all transform hover:scale-105 shadow-lg
                         ${
-                          appState.mode === 'challenge_select' ||
-                          appState.mode === 'falling_notes' ||
-                          appState.mode === 'replication_challenge'
+                          appState.mode === 'challenge_select' || appState.mode === 'falling_notes'
                             ? 'bg-gradient-to-r from-orange-400 to-red-500 text-white'
                             : 'bg-gradient-to-r from-gray-600 to-gray-700 text-gray-200 hover:from-gray-500 hover:to-gray-600'
                         }
                       `}
                           style={{
                             fontFamily: "'Press Start 2P', monospace",
-                            fontSize: '8px',
+                            fontSize: '7px',
                             border: '2px solid #333',
-                            boxShadow: '4px 4px 0px #333',
+                            boxShadow: '3px 3px 0px #333',
                             borderRadius: '0px',
                           }}
                         >
-                          🏆 CHALLENGES
+                          PLAY
                         </button>
-
-                        {appState.currentPostId && (
-                          <button
-                            onClick={() => {
-                              playButtonClick();
-                              handleModeChange('playback');
-                            }}
-                            className={`
-                        px-4 py-2 text-sm rounded-lg font-bold transition-all transform hover:scale-105 shadow-lg
-                        ${
-                          appState.mode === 'playback'
-                            ? 'bg-gradient-to-r from-green-400 to-blue-500 text-white'
-                            : 'bg-gradient-to-r from-gray-600 to-gray-700 text-gray-200 hover:from-gray-500 hover:to-gray-600'
-                        }
-                      `}
-                            style={{
-                              fontFamily: "'Press Start 2P', monospace",
-                              fontSize: '8px',
-                              border: '2px solid #333',
-                              boxShadow: '4px 4px 0px #333',
-                              borderRadius: '0px',
-                            }}
-                          >
-                            🕹️ ARENA
-                          </button>
-                        )}
                       </div>
                     </div>
                   )}
@@ -1600,46 +1617,328 @@ export const App = () => {
               )}
 
               {/* Render current mode */}
+              {/* Home Screen - Mode Selection */}
+              {appState.mode === 'home' && (
+                <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px 20px' }}>
+                  <div
+                    style={{
+                      background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+                      borderRadius: '16px',
+                      padding: '48px',
+                      border: '4px solid #0f3460',
+                      boxShadow: '0 0 40px rgba(0, 212, 255, 0.4)',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <h1
+                      style={{
+                        color: '#00d4ff',
+                        fontSize: '48px',
+                        marginBottom: '16px',
+                        fontFamily: "'Press Start 2P', monospace",
+                        textShadow: '0 0 20px #00d4ff',
+                      }}
+                    >
+                      🎮 RIFFRIVALS
+                    </h1>
+                    <p
+                      style={{
+                        color: '#fff',
+                        fontSize: '14px',
+                        marginBottom: '48px',
+                        fontFamily: "'Press Start 2P', monospace",
+                      }}
+                    >
+                      RHYTHM BATTLES BUILT BY THE COMMUNITY
+                    </p>
+
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                        gap: '24px',
+                        marginBottom: '32px',
+                      }}
+                    >
+                      {/* Create Replication Challenge */}
+                      <button
+                        onClick={() => setAppState((prev) => ({ ...prev, mode: 'create' }))}
+                        style={{
+                          padding: '32px',
+                          background: 'linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%)',
+                          border: '4px solid #000',
+                          borderRadius: '16px',
+                          cursor: 'pointer',
+                          transition: 'transform 0.2s',
+                          boxShadow: '0 8px 0 #000',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-4px)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                        }}
+                      >
+                        <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎸</div>
+                        <h3
+                          style={{
+                            color: '#fff',
+                            fontSize: '16px',
+                            marginBottom: '12px',
+                            fontFamily: "'Press Start 2P', monospace",
+                          }}
+                        >
+                          CREATE MODE
+                        </h3>
+                        <p
+                          style={{
+                            color: '#fff',
+                            fontSize: '10px',
+                            lineHeight: '1.6',
+                            fontFamily: "'Press Start 2P', monospace",
+                          }}
+                        >
+                          Record a short musical loop. Others will try to replicate your rhythm!
+                        </p>
+                      </button>
+
+                      {/* Chart Creator Mode */}
+                      <button
+                        onClick={() => setAppState((prev) => ({ ...prev, mode: 'chart_creator' }))}
+                        style={{
+                          padding: '32px',
+                          background: 'linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%)',
+                          border: '4px solid #000',
+                          borderRadius: '16px',
+                          cursor: 'pointer',
+                          transition: 'transform 0.2s',
+                          boxShadow: '0 8px 0 #000',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-4px)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                        }}
+                      >
+                        <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎼</div>
+                        <h3
+                          style={{
+                            color: '#fff',
+                            fontSize: '16px',
+                            marginBottom: '12px',
+                            fontFamily: "'Press Start 2P', monospace",
+                          }}
+                        >
+                          CHART CREATOR
+                        </h3>
+                        <p
+                          style={{
+                            color: '#fff',
+                            fontSize: '10px',
+                            lineHeight: '1.6',
+                            fontFamily: "'Press Start 2P', monospace",
+                          }}
+                        >
+                          Design your own Falling Tiles level like Beat Saber or Osu!
+                        </p>
+                      </button>
+
+                      {/* Browse Challenges */}
+                      <button
+                        onClick={() =>
+                          setAppState((prev) => ({ ...prev, mode: 'challenge_select' }))
+                        }
+                        style={{
+                          padding: '32px',
+                          background: 'linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%)',
+                          border: '4px solid #000',
+                          borderRadius: '16px',
+                          cursor: 'pointer',
+                          transition: 'transform 0.2s',
+                          boxShadow: '0 8px 0 #000',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-4px)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                        }}
+                      >
+                        <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎮</div>
+                        <h3
+                          style={{
+                            color: '#fff',
+                            fontSize: '16px',
+                            marginBottom: '12px',
+                            fontFamily: "'Press Start 2P', monospace",
+                          }}
+                        >
+                          PLAY CHALLENGES
+                        </h3>
+                        <p
+                          style={{
+                            color: '#fff',
+                            fontSize: '10px',
+                            lineHeight: '1.6',
+                            fontFamily: "'Press Start 2P', monospace",
+                          }}
+                        >
+                          Browse and play community-created rhythm challenges!
+                        </p>
+                      </button>
+                    </div>
+
+                    <div
+                      style={{
+                        padding: '24px',
+                        background: '#0a0a0a',
+                        border: '2px solid #0f3460',
+                        borderRadius: '8px',
+                      }}
+                    >
+                      <h4
+                        style={{
+                          color: '#00d4ff',
+                          fontSize: '12px',
+                          marginBottom: '16px',
+                          fontFamily: "'Press Start 2P', monospace",
+                        }}
+                      >
+                        HOW IT WORKS:
+                      </h4>
+                      <ul
+                        style={{
+                          color: '#fff',
+                          fontSize: '10px',
+                          lineHeight: '2',
+                          textAlign: 'left',
+                          listStyle: 'none',
+                          padding: 0,
+                        }}
+                      >
+                        <li>✅ Create challenges by recording OR designing levels</li>
+                        <li>✅ Others attempt your challenges and compete for high scores</li>
+                        <li>✅ Every challenge is a Reddit post - vote for the best!</li>
+                        <li>✅ Remix existing challenges with your own twist</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Create Mode - Simplified Single Track Recording */}
               {appState.mode === 'create' && (
-                <CreateMode onCompositionCreate={handleCompositionCreate} />
-              )}
+                <SimplifiedCreateMode
+                  onTrackCreate={async (track: TrackData, title: string) => {
+                    try {
+                      const response = await fetch('/api/create-riff', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ trackData: track, title }),
+                      });
 
-              {appState.mode === 'playback' && appState.currentPostId && (
-                <RiffPost
-                  postId={appState.currentPostId}
-                  onJamRequest={handleJamRequest}
-                  onCreateFirst={() => handleModeChange('create')}
-                  onChallengeRequest={(composition, challengeType) => {
-                    console.log(
-                      'App: handleChallengeRequest called with:',
-                      composition,
-                      challengeType
-                    );
-                    // For post-specific challenges, go directly to the selected challenge mode
-                    const newMode =
-                      challengeType === 'falling_notes' ? 'falling_notes' : 'replication_challenge';
-                    console.log('App: Setting mode to:', newMode);
-                    setAppState((prev) => ({
-                      ...prev,
-                      mode: newMode,
-                      currentComposition: composition,
-                      selectedChallenge: composition,
-                      currentChallengeType: challengeType,
-                    }));
+                      if (response.ok) {
+                        const data = await response.json();
+                        if (data.success) {
+                          alert('Challenge created successfully!');
+                          setAppState((prev) => ({ ...prev, mode: 'home' }));
+                        } else {
+                          alert(`Failed: ${data.message}`);
+                        }
+                      } else {
+                        alert('Network error while creating challenge');
+                      }
+                    } catch (error) {
+                      console.error('Error creating challenge:', error);
+                      alert('Failed to create challenge');
+                    }
                   }}
+                  onCancel={() => setAppState((prev) => ({ ...prev, mode: 'home' }))}
                 />
               )}
 
-              {appState.mode === 'jam' && appState.currentComposition && appState.currentPostId && (
-                <JamReply
-                  parentComposition={appState.currentComposition}
-                  parentPostId={appState.currentPostId}
-                  onReplySubmit={handleJamReplySubmit}
-                  onCancel={handleCancel}
+              {/* Chart Creator Mode */}
+              {appState.mode === 'chart_creator' && (
+                <ChartEditor
+                  instrument="drums"
+                  onSave={async (chart: ChartData) => {
+                    try {
+                      const response = await fetch('/api/create-chart', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ chartData: chart }),
+                      });
+
+                      if (response.ok) {
+                        const data = await response.json();
+                        if (data.success) {
+                          alert('Chart published successfully!');
+                          setAppState((prev) => ({ ...prev, mode: 'home' }));
+                        } else {
+                          alert(`Failed: ${data.message}`);
+                        }
+                      } else {
+                        alert('Network error while publishing chart');
+                      }
+                    } catch (error) {
+                      console.error('Error publishing chart:', error);
+                      alert('Failed to publish chart');
+                    }
+                  }}
+                  onCancel={() => setAppState((prev) => ({ ...prev, mode: 'home' }))}
+                  audioEngine={challengeAudioEngineRef.current}
                 />
               )}
 
-              {appState.mode === 'challenge' && <FallingNotesMode />}
+              {/* Remix Mode */}
+              {appState.mode === 'remix' &&
+                appState.remixParentPostId &&
+                appState.currentComposition && (
+                  <RemixChallenge
+                    parentPostId={appState.remixParentPostId}
+                    parentComposition={appState.currentComposition}
+                    onRemixCreate={async (
+                      track: TrackData,
+                      title: string,
+                      parentPostId: string
+                    ) => {
+                      try {
+                        const response = await fetch('/api/create-remix', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ parentPostId, trackData: track, title }),
+                        });
+
+                        if (response.ok) {
+                          const data = await response.json();
+                          if (data.success) {
+                            alert('Remix created successfully!');
+                            setAppState((prev) => ({
+                              ...prev,
+                              mode: 'home',
+                              remixParentPostId: null,
+                            }));
+                          } else {
+                            alert(`Failed: ${data.message}`);
+                          }
+                        } else {
+                          alert('Network error while creating remix');
+                        }
+                      } catch (error) {
+                        console.error('Error creating remix:', error);
+                        alert('Failed to create remix');
+                      }
+                    }}
+                    onCancel={() =>
+                      setAppState((prev) => ({
+                        ...prev,
+                        mode: 'playback',
+                        remixParentPostId: null,
+                      }))
+                    }
+                  />
+                )}
 
               {/* Challenge System Modes */}
               {appState.mode === 'challenge_select' && (
@@ -1896,56 +2195,11 @@ export const App = () => {
                       missedNotes: 0,
                       completedAt: Date.now(),
                       originalTrackId: '',
-                      challengeType: 'falling_notes',
+                      challengeType: 'falling_tiles',
                     }
                   }
                   leaderboardPosition={1} // This would be calculated from leaderboard
                 />
-              )}
-
-              {appState.mode === 'leaderboard' && appState.selectedChallenge && (
-                <Leaderboard
-                  scores={appState.leaderboardScores}
-                  currentUserId={appState.username || 'current_user'}
-                  onScoreClick={(_score) => {
-                    // Handle score click
-                  }}
-                />
-              )}
-
-              {/* Fallback for unknown states */}
-              {!appState.currentPostId && appState.mode === 'playback' && (
-                <div className="text-center py-16">
-                  <div className="text-8xl mb-6 animate-bounce">🎮</div>
-                  <h2
-                    className="text-4xl font-bold text-white mb-4 drop-shadow-lg"
-                    style={{
-                      fontFamily: "'Press Start 2P', monospace",
-                      textShadow: '4px 4px 0px #ff6b6b, 8px 8px 0px #4ecdc4',
-                    }}
-                  >
-                    WELCOME TO RIFFRIVALS!
-                  </h2>
-                  <p
-                    className="text-purple-200 mb-8 text-xl"
-                    style={{ fontFamily: "'Press Start 2P', monospace", fontSize: '12px' }}
-                  >
-                    THE ULTIMATE MUSIC BATTLE ARENA WHERE BEATS COLLIDE AND LEGENDS ARE BORN
-                  </p>
-                  <button
-                    onClick={() => handleModeChange('create')}
-                    className="px-8 py-4 bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-xl font-bold hover:from-yellow-500 hover:to-orange-600 transition-all transform hover:scale-105 shadow-xl text-lg"
-                    style={{
-                      fontFamily: "'Press Start 2P', monospace",
-                      fontSize: '12px',
-                      border: '4px solid #333',
-                      boxShadow: '8px 8px 0px #333',
-                      borderRadius: '0px',
-                    }}
-                  >
-                    🎮 START YOUR MUSICAL JOURNEY
-                  </button>
-                </div>
               )}
             </main>
 

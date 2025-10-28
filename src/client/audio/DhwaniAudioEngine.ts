@@ -16,7 +16,6 @@ import type {
 import { DEFAULT_AUDIO_CONFIG } from '../../shared/constants/audio.js';
 import { DrumKitSynth } from './DrumKitSynth.js';
 import { PianoSynth } from './PianoSynth.js';
-import { BassSynth } from './BassSynth.js';
 import { SynthSynth } from './SynthSynth.js';
 // Removed performance optimizations for debugging
 
@@ -28,7 +27,6 @@ export class DhwaniAudioEngine implements IAudioEngine {
   // Tone.js instruments
   private drumKit: DrumKitSynth | null = null;
   private pianoSynth: PianoSynth | null = null;
-  private bassSynth: BassSynth | null = null;
   private synthSynth: SynthSynth | null = null;
   private masterGain: Tone.Gain;
 
@@ -71,9 +69,6 @@ export class DhwaniAudioEngine implements IAudioEngine {
       await this.initializePiano();
       console.log('Piano initialized');
 
-      await this.initializeBass();
-      console.log('Bass initialized');
-
       await this.initializeSynth();
       console.log('Synth initialized');
 
@@ -94,10 +89,6 @@ export class DhwaniAudioEngine implements IAudioEngine {
   private async initializePiano(): Promise<void> {
     this.pianoSynth = new PianoSynth(this.config.instruments.piano, this.masterGain);
     await this.pianoSynth.initialize();
-  }
-
-  private async initializeBass(): Promise<void> {
-    this.bassSynth = new BassSynth(this.config.instruments.bass, this.masterGain);
   }
 
   private async initializeSynth(): Promise<void> {
@@ -122,9 +113,6 @@ export class DhwaniAudioEngine implements IAudioEngine {
         case 'piano':
           this.playPianoNote(note, adjustedVelocity);
           break;
-        case 'bass':
-          this.playBassNote(note, adjustedVelocity);
-          break;
         case 'synth':
           this.playSynthNote(note, adjustedVelocity);
           break;
@@ -147,11 +135,6 @@ export class DhwaniAudioEngine implements IAudioEngine {
   private playPianoNote(note: string, velocity: number): void {
     if (!this.pianoSynth) return;
     this.pianoSynth.playNote(note, velocity);
-  }
-
-  private playBassNote(note: string, velocity: number): void {
-    if (!this.bassSynth) return;
-    this.bassSynth.playNote(note, velocity);
   }
 
   private playSynthNote(note: string, velocity: number): void {
@@ -270,36 +253,11 @@ export class DhwaniAudioEngine implements IAudioEngine {
     return this.pianoSynth?.getOctave() ?? 4;
   }
 
-  setBassFret(fret: number): void {
-    if (this.bassSynth) {
-      this.bassSynth.setFret(fret);
-    }
-  }
-
-  getBassFret(): number {
-    return this.bassSynth?.getFret() ?? 0;
-  }
-
-  playBassString(
-    bassString: import('../../shared/types/music.js').BassString,
-    fret?: number,
-    velocity?: number
-  ): void {
-    if (this.bassSynth) {
-      if (fret !== undefined) {
-        this.bassSynth.playString(bassString, fret, velocity);
-      } else {
-        this.bassSynth.playStringAtCurrentFret(bassString, velocity);
-      }
-    }
-  }
-
   dispose(): void {
     try {
       // Clean up all Tone.js resources
       this.drumKit?.dispose();
       this.pianoSynth?.dispose();
-      this.bassSynth?.dispose();
       this.synthSynth?.dispose();
       this.masterGain?.dispose();
 

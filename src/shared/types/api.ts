@@ -17,13 +17,24 @@ export type DecrementResponse = {
   count: number;
 };
 
-// Dhwani API Types
-import type { TrackData, CompositionData, ChallengeScore } from './music.js';
+// RiffRivals API Types
+import type {
+  TrackData,
+  CompositionData,
+  ChallengeScore,
+  ChartData,
+  ChallengeType,
+} from './music.js';
 
 export type CreateRiffRequest = {
   trackData: TrackData;
   title?: string;
-  isChallenge?: boolean;
+  challengeType?: ChallengeType;
+  challengeSettings?: {
+    allowedAttempts?: number;
+    timeLimit?: number;
+    accuracyThreshold?: number;
+  };
 };
 
 export type CreateRiffResponse = {
@@ -129,4 +140,53 @@ export type CreateChallengeResponse = {
   success: boolean;
   message?: string;
   difficulty?: string;
+};
+
+// Chart Creator API Types
+export type CreateChartRequest = {
+  chartData: ChartData;
+};
+
+export type CreateChartResponse = {
+  postId: string;
+  success: boolean;
+  message?: string;
+  chartId?: string;
+};
+
+export type GetChartRequest = {
+  postId: string;
+};
+
+export type GetChartResponse = {
+  chart: ChartData;
+  success: boolean;
+  message?: string;
+};
+
+export type GetChartsRequest = {
+  instrument?: string;
+  difficulty?: 'easy' | 'medium' | 'hard';
+  limit?: number;
+  offset?: number;
+};
+
+export type GetChartsResponse = {
+  charts: ChartData[];
+  total: number;
+  success: boolean;
+  message?: string;
+};
+
+// Remix API Types
+export type CreateRemixRequest = {
+  parentPostId: string;
+  trackData: TrackData;
+  title?: string;
+};
+
+export type CreateRemixResponse = {
+  postId: string;
+  success: boolean;
+  message?: string;
 };

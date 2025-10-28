@@ -3,15 +3,14 @@
 import type { InstrumentType, DrumType, BassString, TrackData } from './music.js';
 
 export type UIMode =
+  | 'home'
   | 'create'
-  | 'jam'
-  | 'challenge'
+  | 'chart_creator'
+  | 'remix'
   | 'challenge_select'
   | 'challenge_results'
-  | 'leaderboard'
   | 'falling_notes'
-  | 'replication_challenge'
-  | 'playback';
+  | 'replication_challenge';
 
 export type DrumKitProps = {
   onNotePlay: (drum: DrumType, velocity: number) => void;

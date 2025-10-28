@@ -17,11 +17,19 @@ import {
   GetChallengeScoresResponse,
   CreateChallengeRequest,
   CreateChallengeResponse,
+  CreateChartRequest,
+  CreateChartResponse,
+  GetChartRequest,
+  GetChartResponse,
+  GetChartsRequest,
+  GetChartsResponse,
+  CreateRemixRequest,
+  CreateRemixResponse,
   ApiErrorResponse,
 } from '../shared/types/api.js';
 import { redis, reddit, createServer, context, getServerPort } from '@devvit/web/server';
 import { createPost } from './core/post.js';
-import type { TrackData, CompositionData } from '../shared/types/music.js';
+import type { TrackData, CompositionData, ChartData } from '../shared/types/music.js';
 import {
   generateRiffTitle,
   generateRiffPreview,
@@ -36,6 +44,9 @@ import {
   storeChallengeScore,
   getChallengeScores,
   getLeaderboard,
+  storeChart,
+  getChart,
+  getCharts,
 } from './utils/redisUtils.js';
 
 const app = express();
@@ -138,7 +149,7 @@ router.post<{}, CreateRiffResponse | ApiErrorResponse, CreateRiffRequest>(
   '/api/create-riff',
   async (req, res): Promise<void> => {
     try {
-      const { trackData, title } = req.body;
+      const { trackData, title, challengeType = 'replication', challengeSettings } = req.body;
 
       if (!trackData) {
         res.status(400).json({
@@ -165,21 +176,37 @@ router.post<{}, CreateRiffResponse | ApiErrorResponse, CreateRiffRequest>(
       // Create composition metadata
       const composition = generateCompositionMetadata(trackData, username);
 
+      // Update challenge settings
+      composition.metadata.challengeSettings = {
+        challengeType,
+        baseDifficulty: 'auto',
+        calculatedDifficulty: 0,
+        scoringWeights:
+          challengeType === 'replication'
+            ? { timing: 0.3, accuracy: 0.7 }
+            : { timing: 0.7, accuracy: 0.3 },
+        allowedAttempts: challengeSettings?.allowedAttempts || 3,
+        timeLimit: challengeSettings?.timeLimit || Math.ceil(trackData.duration),
+        accuracyThreshold: challengeSettings?.accuracyThreshold || 70,
+        leaderboard: [],
+      };
+
       // Create custom post with splash screen and embedded data
       const post = await reddit.submitCustomPost({
         subredditName: context.subredditName!,
         title: postTitle,
         splash: {
-          appDisplayName: 'Riff',
+          appDisplayName: 'RiffRivals',
           backgroundUri: 'splash.png',
-          heading: `Musical Riff by u/${username}`,
-          buttonLabel: 'Play Music',
+          heading: `Replication Challenge by u/${username}`,
+          buttonLabel: 'Play Challenge',
           description: preview,
         },
         textFallback: {
-          text: `${preview}\n\n*This is a Riff post. Click to play!*`,
+          text: `${preview}\n\n*This is a RiffRivals replication challenge. Click to play!*`,
         },
         postData: {
+          type: 'replication',
           compositionId: composition.id,
           trackId: trackData.id,
           instrument: trackData.instrument,
@@ -187,6 +214,7 @@ router.post<{}, CreateRiffResponse | ApiErrorResponse, CreateRiffRequest>(
           duration: trackData.duration,
           createdBy: username,
           createdAt: Date.now(),
+          challengeType,
         },
       });
 
@@ -196,7 +224,7 @@ router.post<{}, CreateRiffResponse | ApiErrorResponse, CreateRiffRequest>(
       res.json({
         postId: post.id,
         success: true,
-        message: 'Riff post created successfully',
+        message: 'Challenge created successfully',
       });
     } catch (error) {
       console.error('Error creating riff post:', error);
@@ -552,9 +580,14 @@ router.post<{}, CreateChallengeResponse | ApiErrorResponse, CreateChallengeReque
 
       // Use provided challenge settings or defaults
       const finalChallengeSettings = {
+        challengeType: 'replication' as const,
+        baseDifficulty: 'auto' as const,
+        calculatedDifficulty: 0,
+        scoringWeights: { timing: 0.3, accuracy: 0.7 },
         allowedAttempts: challengeSettings?.allowedAttempts || 3,
         timeLimit: challengeSettings?.timeLimit || trackData.duration * 2,
         accuracyThreshold: challengeSettings?.accuracyThreshold || 70,
+        leaderboard: [],
       };
 
       // Generate challenge-specific content
@@ -676,6 +709,298 @@ function getScoreGrade(score: number): string {
   if (score >= 55) return 'C';
   return 'D';
 }
+
+/**
+ * Create a new chart (Falling Tiles level)
+ */
+router.post<{}, CreateChartResponse | ApiErrorResponse, CreateChartRequest>(
+  '/api/create-chart',
+  async (req, res): Promise<void> => {
+    try {
+      const { chartData } = req.body;
+
+      if (!chartData) {
+        res.status(400).json({
+          success: false,
+          message: 'chartData is required',
+        });
+        return;
+      }
+
+      // Validate chart data
+      if (
+        !chartData.title ||
+        !chartData.instrument ||
+        !chartData.notes ||
+        chartData.notes.length === 0
+      ) {
+        res.status(400).json({
+          success: false,
+          message: 'Chart must have a title, instrument, and at least one note',
+        });
+        return;
+      }
+
+      // Validate that chart is cleared
+      if (!chartData.cleared) {
+        res.status(400).json({
+          success: false,
+          message: 'You must successfully clear your own chart before publishing!',
+        });
+        return;
+      }
+
+      // Get current user
+      const username = await reddit.getCurrentUsername();
+      if (!username) {
+        res.status(401).json({
+          success: false,
+          message: 'User authentication required',
+        });
+        return;
+      }
+
+      // Update chart with creator info
+      const finalChart: ChartData = {
+        ...chartData,
+        createdBy: username,
+        createdAt: Date.now(),
+      };
+
+      // Generate post content
+      const postTitle = `🎼 ${chartData.title} [${chartData.instrument.toUpperCase()}] - ${chartData.difficulty.toUpperCase()}`;
+      const preview =
+        `Falling Tiles Chart\n` +
+        `🎵 Instrument: ${chartData.instrument}\n` +
+        `⏱️ Duration: ${chartData.duration}s @ ${chartData.bpm} BPM\n` +
+        `🎯 Difficulty: ${chartData.difficulty}\n` +
+        `🎹 Notes: ${chartData.notes.length}\n` +
+        `✅ Cleared by creator`;
+
+      // Create custom post
+      const post = await reddit.submitCustomPost({
+        subredditName: context.subredditName!,
+        title: postTitle,
+        splash: {
+          appDisplayName: 'RiffRivals',
+          backgroundUri: 'splash.png',
+          heading: `Falling Tiles Chart by u/${username}`,
+          buttonLabel: 'Play Chart',
+          description: preview,
+        },
+        textFallback: {
+          text: `${preview}\n\n*This is a RiffRivals Falling Tiles chart. Click to play!*`,
+        },
+        postData: {
+          type: 'chart',
+          chartId: finalChart.id,
+          instrument: finalChart.instrument,
+          difficulty: finalChart.difficulty,
+          duration: finalChart.duration,
+          bpm: finalChart.bpm,
+          noteCount: finalChart.notes.length,
+          createdBy: username,
+          createdAt: finalChart.createdAt,
+          cleared: true,
+        },
+      });
+
+      // Store chart data in Redis
+      await storeChart(post.id, finalChart);
+
+      res.json({
+        postId: post.id,
+        chartId: finalChart.id,
+        success: true,
+        message: 'Chart published successfully',
+      });
+    } catch (error) {
+      console.error('Error creating chart:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to create chart',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+);
+
+/**
+ * Get a specific chart by post ID
+ */
+router.get<{ postId: string }, GetChartResponse | ApiErrorResponse>(
+  '/api/get-chart/:postId',
+  async (req, res): Promise<void> => {
+    try {
+      const { postId } = req.params;
+
+      if (!postId) {
+        res.status(400).json({
+          success: false,
+          message: 'postId is required',
+        });
+        return;
+      }
+
+      const chart = await getChart(postId);
+
+      if (!chart) {
+        res.status(404).json({
+          success: false,
+          message: 'Chart not found',
+        });
+        return;
+      }
+
+      res.json({
+        chart,
+        success: true,
+      });
+    } catch (error) {
+      console.error('Error retrieving chart:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to retrieve chart',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+);
+
+/**
+ * Get charts with optional filters
+ */
+router.get<{}, GetChartsResponse | ApiErrorResponse>(
+  '/api/get-charts',
+  async (req, res): Promise<void> => {
+    try {
+      const { instrument, difficulty, limit = '20', offset = '0' } = req.query;
+
+      const { charts, total } = await getCharts(
+        instrument as string | undefined,
+        difficulty as 'easy' | 'medium' | 'hard' | undefined,
+        parseInt(limit as string),
+        parseInt(offset as string)
+      );
+
+      res.json({
+        charts,
+        total,
+        success: true,
+      });
+    } catch (error) {
+      console.error('Error retrieving charts:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to retrieve charts',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+);
+
+/**
+ * Create a remix of an existing challenge
+ */
+router.post<{}, CreateRemixResponse | ApiErrorResponse, CreateRemixRequest>(
+  '/api/create-remix',
+  async (req, res): Promise<void> => {
+    try {
+      const { parentPostId, trackData, title } = req.body;
+
+      if (!parentPostId || !trackData) {
+        res.status(400).json({
+          success: false,
+          message: 'parentPostId and trackData are required',
+        });
+        return;
+      }
+
+      // Get current user
+      const username = await reddit.getCurrentUsername();
+      if (!username) {
+        res.status(401).json({
+          success: false,
+          message: 'User authentication required',
+        });
+        return;
+      }
+
+      // Get parent composition to link lineage
+      const parentComposition = await getComposition(parentPostId);
+      if (!parentComposition) {
+        res.status(404).json({
+          success: false,
+          message: 'Parent challenge not found',
+        });
+        return;
+      }
+
+      // Generate post content
+      const postTitle = title || `🔄 Remix of "${parentComposition.metadata.title || 'Untitled'}"`;
+      const preview =
+        generateRiffPreview(trackData) +
+        `\n\n🔄 Remixed from original by u/${parentComposition.metadata.collaborators[0] || 'unknown'}`;
+
+      // Create composition with lineage
+      const composition = generateCompositionMetadata(trackData, username);
+      composition.metadata.title = postTitle;
+      composition.metadata.challengeSettings = {
+        challengeType: 'replication',
+        baseDifficulty: 'auto',
+        calculatedDifficulty: 0,
+        scoringWeights: { timing: 0.3, accuracy: 0.7 },
+        allowedAttempts: 3,
+        timeLimit: Math.ceil(trackData.duration),
+        accuracyThreshold: 70,
+        leaderboard: [],
+      };
+
+      // Create custom post
+      const post = await reddit.submitCustomPost({
+        subredditName: context.subredditName!,
+        title: postTitle,
+        splash: {
+          appDisplayName: 'RiffRivals',
+          backgroundUri: 'splash.png',
+          heading: `Remix by u/${username}`,
+          buttonLabel: 'Play Remix',
+          description: preview,
+        },
+        textFallback: {
+          text: `${preview}\n\n*This is a RiffRivals remix. Click to play!*`,
+        },
+        postData: {
+          compositionId: composition.id,
+          trackId: trackData.id,
+          instrument: trackData.instrument,
+          noteCount: trackData.notes.length,
+          duration: trackData.duration,
+          createdBy: username,
+          createdAt: Date.now(),
+          parentPostId: parentPostId,
+          isRemix: true,
+        },
+      });
+
+      // Store composition data
+      await storeComposition(post.id, composition);
+
+      res.json({
+        postId: post.id,
+        success: true,
+        message: 'Remix created successfully',
+      });
+    } catch (error) {
+      console.error('Error creating remix:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to create remix',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+);
 
 router.post('/internal/on-app-install', async (_req, res): Promise<void> => {
   try {

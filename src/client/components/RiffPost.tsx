@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import type { CompositionData, TrackData } from '../../shared/types/music.js';
+import type { CompositionData, TrackData, ChallengeType } from '../../shared/types/music.js';
 import type { GetCompositionResponse } from '../../shared/types/api.js';
 import { generateCompositionPreview } from '../../shared/utils/previewGenerator.js';
 import { PlaybackEngine } from './PlaybackEngine.js';
@@ -9,10 +9,7 @@ import { AudioInitButton } from './AudioInitButton.js';
 type RiffPostProps = {
   postId: string;
   onJamRequest: (composition: CompositionData) => void;
-  onChallengeRequest: (
-    composition: CompositionData,
-    challengeType: 'replication' | 'falling_notes'
-  ) => void;
+  onChallengeRequest: (composition: CompositionData, challengeType: ChallengeType) => void;
   onCreateFirst?: () => void;
 };
 
@@ -74,7 +71,7 @@ export const RiffPost: React.FC<RiffPostProps> = ({
   }, [composition, onJamRequest]);
 
   const handleChallengeRequest = useCallback(
-    (challengeType: 'replication' | 'falling_notes') => {
+    (challengeType: ChallengeType) => {
       console.log('RiffPost: handleChallengeRequest called with:', composition, challengeType);
       if (composition) {
         console.log(
@@ -256,6 +253,26 @@ export const RiffPost: React.FC<RiffPostProps> = ({
         />
       </div>
 
+      {/* Challenge Type Badge */}
+      {composition.metadata.challengeSettings && (
+        <div className="pt-3 border-t">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-gray-600">Challenge Type:</span>
+            <span
+              className={`px-3 py-1 rounded-full text-xs font-bold ${
+                composition.metadata.challengeSettings.challengeType === 'replication'
+                  ? 'bg-orange-100 text-orange-800'
+                  : 'bg-purple-100 text-purple-800'
+              }`}
+            >
+              {composition.metadata.challengeSettings.challengeType === 'replication'
+                ? '🎯 REPLICATION'
+                : '🎵 FALLING TILES'}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Action Buttons */}
       <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
         <button
@@ -292,7 +309,7 @@ export const RiffPost: React.FC<RiffPostProps> = ({
           </button>
 
           <button
-            onClick={() => handleChallengeRequest('falling_notes')}
+            onClick={() => handleChallengeRequest('falling_tiles')}
             disabled={isPlaying}
             className={`
               flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors text-sm
@@ -307,6 +324,33 @@ export const RiffPost: React.FC<RiffPostProps> = ({
             Falling Notes
           </button>
         </div>
+      </div>
+
+      {/* Remix Button */}
+      <div className="pt-3">
+        <button
+          onClick={() => {
+            // Trigger remix mode via custom event
+            if (composition) {
+              const event = new CustomEvent('riffrivals:remix', {
+                detail: { postId, composition },
+              });
+              window.dispatchEvent(event);
+            }
+          }}
+          disabled={isPlaying}
+          className={`
+            w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors
+            ${
+              isPlaying
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white hover:from-cyan-600 hover:to-blue-600'
+            }
+          `}
+        >
+          <span className="text-xl">🔄</span>
+          Remix This Challenge
+        </button>
       </div>
 
       {/* Metadata */}
