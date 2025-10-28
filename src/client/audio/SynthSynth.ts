@@ -11,6 +11,7 @@ export class SynthSynth {
   private reverb: Tone.Reverb;
   private masterGain: Tone.Gain;
   private currentWaveform: MusicWaveformType = 'square';
+  private isReady: boolean = false;
 
   constructor(config: SynthConfig, masterGain: Tone.Gain) {
     this.masterGain = masterGain;
@@ -46,6 +47,13 @@ export class SynthSynth {
     });
 
     this.setupAudioChain(config);
+  }
+
+  async initialize(): Promise<void> {
+    // Wait for reverb to generate its impulse response
+    await this.reverb.generate();
+    this.isReady = true;
+    console.log('SynthSynth: Reverb ready');
   }
 
   private setupAudioChain(config: SynthConfig): void {

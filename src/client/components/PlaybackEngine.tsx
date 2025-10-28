@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import type { PlaybackEngineProps, TrackData } from '../../shared/index.js';
 import { DhwaniAudioEngine } from '../audio/DhwaniAudioEngine.js';
+import { AudioInitButton } from './AudioInitButton.js';
 
 type PlaybackState = 'idle' | 'playing' | 'paused' | 'loading';
 
@@ -16,6 +17,7 @@ export const PlaybackEngine: React.FC<PlaybackEngineProps> = ({
   const [activeNotes, setActiveNotes] = useState<Set<string>>(new Set());
   const [mutedTracks, setMutedTracks] = useState<Set<string>>(new Set());
   const [soloedTracks, setSoloedTracks] = useState<Set<string>>(new Set());
+  const [audioInitialized, setAudioInitialized] = useState(false);
 
   const audioEngineRef = useRef<DhwaniAudioEngine | null>(null);
   const playbackStartTimeRef = useRef<number>(0);
@@ -29,7 +31,8 @@ export const PlaybackEngine: React.FC<PlaybackEngineProps> = ({
     const initializeEngine = async () => {
       if (!audioEngineRef.current) {
         audioEngineRef.current = new DhwaniAudioEngine();
-        await audioEngineRef.current.initialize();
+        // Don't initialize immediately - wait for user interaction
+        console.log('PlaybackEngine: Audio engine created, waiting for initialization');
       }
     };
 
@@ -131,6 +134,18 @@ export const PlaybackEngine: React.FC<PlaybackEngineProps> = ({
   const play = useCallback(async () => {
     if (!audioEngineRef.current || tracks.length === 0) return;
 
+    // Ensure audio is initialized before playing
+    if (audioEngineRef.current.getState() === 'idle') {
+      console.log('PlaybackEngine: Initializing audio engine before playback');
+      try {
+        await audioEngineRef.current.initialize();
+        setAudioInitialized(true);
+      } catch (error) {
+        console.error('PlaybackEngine: Failed to initialize audio:', error);
+        return;
+      }
+    }
+
     try {
       setPlaybackState('loading');
 
@@ -231,7 +246,25 @@ export const PlaybackEngine: React.FC<PlaybackEngineProps> = ({
   const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className="flex flex-col gap-4 p-4 bg-white rounded-lg border">
+    <div
+      style={{
+        padding: '16px',
+        background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%)',
+        borderRadius: '8px',
+        border: '2px solid #0f3460',
+        fontFamily: 'monospace',
+        position: 'relative',
+      }}
+    >
+      {/* Audio Initialization Button */}
+      <div style={{ position: 'fixed', top: '80px', right: '20px', zIndex: 9999 }}>
+        <AudioInitButton
+          onAudioInitialized={() => {
+            setAudioInitialized(true);
+          }}
+          position="top-right"
+        />
+      </div>
       {/* Main Controls */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">

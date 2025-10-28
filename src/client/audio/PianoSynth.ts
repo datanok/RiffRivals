@@ -10,6 +10,7 @@ export class PianoSynth {
   private reverb: Tone.Reverb;
   private masterGain: Tone.Gain;
   private currentOctave: number = 4;
+  private isReady: boolean = false;
 
   constructor(config: SynthConfig, masterGain: Tone.Gain) {
     this.masterGain = masterGain;
@@ -36,8 +37,15 @@ export class PianoSynth {
       wet: 0.2,
     });
 
-    // Set up audio chain
+    // Set up audio chain and wait for reverb to be ready
     this.setupAudioChain(config);
+  }
+
+  async initialize(): Promise<void> {
+    // Wait for reverb to generate its impulse response
+    await this.reverb.generate();
+    this.isReady = true;
+    console.log('PianoSynth: Reverb ready');
   }
 
   private setupAudioChain(config: SynthConfig): void {

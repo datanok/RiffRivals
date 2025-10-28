@@ -8,6 +8,10 @@ import type {
   TrackData,
   NoteEvent,
 } from '../../shared/types/music.js';
+import { DrumKit, Piano, Bass, Synth } from './instruments/index.js';
+import { DhwaniAudioEngine } from '../audio/DhwaniAudioEngine.js';
+import { playButtonClick } from '../utils/audioFeedback.js';
+import { AudioInitButton } from './AudioInitButton.js';
 
 // Local type definitions for notes
 type PianoNote = 'C4' | 'D4' | 'E4' | 'F4' | 'G4' | 'A4' | 'B4' | 'C5';
@@ -40,6 +44,7 @@ interface ReplicationChallengeProps {
   challengeMode?: 'practice' | 'challenge';
   scoreWeights?: ScoringWeights;
   onChallengeComplete?: (score: ChallengeScore) => void;
+  audioEngine?: DhwaniAudioEngine | null;
 }
 
 interface RecordedNote {
@@ -70,6 +75,7 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
   challengeMode = 'practice',
   scoreWeights = { timing: 0.3, accuracy: 0.7 },
   onChallengeComplete,
+  audioEngine,
 }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordedNotes, setRecordedNotes] = useState<RecordedNote[]>([]);
@@ -78,6 +84,9 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
   const [comparisonResults, setComparisonResults] = useState<ComparisonResult[]>([]);
   const [score, setScore] = useState(0);
   const [accuracy, setAccuracy] = useState(100);
+  const [audioInitialized, setAudioInitialized] = useState(false);
+  const [activeNotes, setActiveNotes] = useState<Set<string>>(new Set());
+  const localAudioEngineRef = useRef<DhwaniAudioEngine | null>(null);
 
   // Enhanced scoring for challenge mode
   const [hitCounts, setHitCounts] = useState({
@@ -90,6 +99,55 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
   const recordingStartTimeRef = useRef<number>(0);
   const playbackIntervalRef = useRef<number | undefined>(undefined);
   const recordingIntervalRef = useRef<number | undefined>(undefined);
+
+  // Initialize local audio engine if not provided
+  useEffect(() => {
+    const initAudio = async () => {
+      if (!audioEngine && !localAudioEngineRef.current) {
+        console.log('ReplicationChallenge: Creating local audio engine');
+        localAudioEngineRef.current = new DhwaniAudioEngine();
+      }
+    };
+    void initAudio();
+
+    return () => {
+      if (localAudioEngineRef.current && !audioEngine) {
+        localAudioEngineRef.current.dispose();
+      }
+    };
+  }, [audioEngine]);
+
+  // Get the active audio engine (either passed or local)
+  const getAudioEngine = useCallback(() => {
+    return audioEngine || localAudioEngineRef.current;
+  }, [audioEngine]);
+
+  // Ensure audio engine is initialized before use
+  const ensureAudioInitialized = useCallback(async () => {
+    const engine = getAudioEngine();
+    if (!engine) {
+      console.warn('ReplicationChallenge: No audio engine available');
+      return false;
+    }
+
+    // Check if engine is already initialized
+    const engineState = engine.getEngineState();
+    if (engineState.isInitialized) {
+      console.log('ReplicationChallenge: Audio engine already initialized');
+      return true;
+    }
+
+    console.log('ReplicationChallenge: Initializing audio engine');
+    try {
+      await engine.initialize();
+      setAudioInitialized(true);
+      console.log('ReplicationChallenge: Audio engine initialized successfully');
+      return true;
+    } catch (error) {
+      console.error('ReplicationChallenge: Failed to initialize audio engine:', error);
+      return false;
+    }
+  }, [getAudioEngine]);
 
   // Calculate detailed scores for challenge mode
   const calculateDetailedScores = useCallback(() => {
@@ -198,7 +256,15 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
   );
 
   // Start recording
-  const startRecording = useCallback(() => {
+  const startRecording = useCallback(async () => {
+    // Ensure audio is initialized before recording
+    const initialized = await ensureAudioInitialized();
+    if (!initialized) {
+      console.warn('Audio not initialized - please click the audio button first');
+      return;
+    }
+
+    playButtonClick();
     setIsRecording(true);
     setRecordedNotes([]);
     recordingStartTimeRef.current = Date.now();
@@ -207,10 +273,11 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
     recordingIntervalRef.current = window.setInterval(() => {
       setCurrentTime(Date.now() - recordingStartTimeRef.current);
     }, 100);
-  }, []);
+  }, [ensureAudioInitialized]);
 
   // Stop recording and compare
   const stopRecording = useCallback(() => {
+    playButtonClick();
     setIsRecording(false);
 
     if (recordingIntervalRef.current) {
@@ -262,7 +329,24 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
 
   // Handle note play during recording
   const handleNotePlay = useCallback(
-    (note: string, velocity: number) => {
+    async (note: string, velocity: number) => {
+      // Ensure audio is initialized
+      const initialized = await ensureAudioInitialized();
+      if (!initialized) {
+        console.warn('Audio not initialized - cannot play note');
+        return;
+      }
+
+      // Play the sound through audio engine
+      const engine = getAudioEngine();
+      if (engine) {
+        const engineState = engine.getEngineState();
+        if (engineState.isInitialized) {
+          console.log('ReplicationChallenge: Playing note:', note, 'on instrument:', instrument);
+          engine.playNote(instrument, note, velocity);
+        }
+      }
+
       if (!isRecording) return;
 
       const currentTime = Date.now() - recordingStartTimeRef.current;
@@ -276,36 +360,76 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
       setRecordedNotes((prev) => [...prev, newNote]);
       onNotePlay(note, velocity);
     },
-    [isRecording, onNotePlay]
+    [isRecording, onNotePlay, instrument, ensureAudioInitialized, getAudioEngine]
   );
 
   // Play target track for reference
-  const playTargetTrack = useCallback(() => {
+  const playTargetTrack = useCallback(async () => {
+    // Ensure audio is initialized before playing
+    const initialized = await ensureAudioInitialized();
+    if (!initialized) {
+      console.warn('Audio not initialized - cannot play target track');
+      return;
+    }
+
+    playButtonClick();
     setIsPlaying(true);
+    setActiveNotes(new Set()); // Clear any existing active notes
     let currentIndex = 0;
+
+    const engine = getAudioEngine();
 
     const playNextNote = () => {
       if (currentIndex < targetTrack.notes.length) {
         const note = targetTrack.notes[currentIndex];
+        if (!note) return;
+
+        // Highlight the note
+        setActiveNotes((prev) => new Set([...prev, note.note]));
+
+        // Play through audio engine
+        if (engine) {
+          const engineState = engine.getEngineState();
+          if (engineState.isInitialized) {
+            engine.playNote(instrument, note.note, note.velocity);
+          }
+        }
+
+        // Also call parent callback
         onNotePlay(note.note, note.velocity);
         currentIndex++;
 
+        // Remove highlight after a short duration (note duration)
+        const highlightDuration = Math.max(note.duration * 1000, 200); // At least 200ms
+        setTimeout(() => {
+          setActiveNotes((prev) => {
+            const newSet = new Set(prev);
+            newSet.delete(note.note);
+            return newSet;
+          });
+        }, highlightDuration);
+
         if (currentIndex < targetTrack.notes.length) {
           const nextNote = targetTrack.notes[currentIndex];
-          const delay = (nextNote.startTime - note.startTime) * 1000;
-          playbackIntervalRef.current = window.setTimeout(playNextNote, delay);
+          if (nextNote) {
+            const delay = (nextNote.startTime - note.startTime) * 1000;
+            playbackIntervalRef.current = window.setTimeout(playNextNote, delay);
+          }
         } else {
           setIsPlaying(false);
+          // Clear all active notes when playback ends
+          setTimeout(() => setActiveNotes(new Set()), highlightDuration);
         }
       }
     };
 
     playNextNote();
-  }, [targetTrack.notes, onNotePlay]);
+  }, [targetTrack.notes, onNotePlay, instrument, ensureAudioInitialized, getAudioEngine]);
 
   // Stop playback
   const stopPlayback = useCallback(() => {
     setIsPlaying(false);
+    setActiveNotes(new Set()); // Clear active notes when stopping
     if (playbackIntervalRef.current) {
       clearTimeout(playbackIntervalRef.current);
     }
@@ -323,42 +447,96 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
     };
   }, []);
 
-  // Auto-start when active
+  // Auto-start when active (only once)
+  const hasAutoPlayedRef = useRef(false);
+
   useEffect(() => {
-    if (isActive && !isRecording && !isPlaying) {
-      // Auto-play target track first
+    if (isActive && !isRecording && !isPlaying && !hasAutoPlayedRef.current) {
+      // Auto-play target track first (only once)
       playTargetTrack();
+      hasAutoPlayedRef.current = true;
     }
   }, [isActive, isRecording, isPlaying, playTargetTrack]);
 
   return (
     <div
       style={{
-        padding: '20px',
-        background: 'linear-gradient(135deg, #2a2a2a, #1a1a1a)',
+        padding: '16px',
+        background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%)',
         borderRadius: '0px',
-        border: '4px solid #444',
-        fontFamily: "'Press Start 2P', monospace",
-        maxWidth: '800px',
-        margin: '0 auto',
+        border: '4px solid #0f3460',
+        boxShadow: '0 0 30px rgba(0, 212, 255, 0.4), inset 0 0 30px rgba(0, 0, 0, 0.5)',
+        fontFamily: 'monospace',
+        maxWidth: '100%',
+        width: '100%',
+        minHeight: '100vh',
+        boxSizing: 'border-box',
+        position: 'relative',
       }}
     >
+      {/* Audio Initialization Button */}
+      <div style={{ position: 'fixed', top: '80px', right: '20px', zIndex: 9999 }}>
+        <AudioInitButton
+          onAudioInitialized={async () => {
+            setAudioInitialized(true);
+            await ensureAudioInitialized();
+          }}
+          position="top-right"
+        />
+      </div>
       {/* Header */}
       <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-        <h3 style={{ color: 'white', fontSize: '14px', marginBottom: '10px' }}>
+        <h3
+          style={{
+            color: '#00d4ff',
+            fontSize: '18px',
+            marginBottom: '10px',
+            textShadow: '0 0 10px #00d4ff, 2px 2px 0 #000',
+            letterSpacing: '2px',
+          }}
+        >
           🎵 REPLICATION CHALLENGE
         </h3>
-        <p style={{ color: '#aaa', fontSize: '10px', marginBottom: '15px' }}>
+        <p
+          style={{
+            color: '#00ff00',
+            fontSize: '10px',
+            marginBottom: '15px',
+            textShadow: '1px 1px 0 #000',
+          }}
+        >
           LISTEN TO THE TARGET TRACK, THEN REPLICATE IT!
         </p>
       </div>
 
       {/* Target Track Info */}
       <div
-        style={{ marginBottom: '20px', padding: '15px', background: '#333', borderRadius: '8px' }}
+        style={{
+          marginBottom: '20px',
+          padding: '15px',
+          background: 'rgba(0, 0, 0, 0.5)',
+          border: '2px solid #0f3460',
+          borderRadius: '8px',
+        }}
       >
-        <div style={{ color: '#4ecdc4', fontSize: '10px', marginBottom: '8px' }}>TARGET TRACK</div>
-        <div style={{ color: 'white', fontSize: '12px', marginBottom: '5px' }}>
+        <div
+          style={{
+            color: '#00d4ff',
+            fontSize: '10px',
+            marginBottom: '8px',
+            textShadow: '0 0 10px #00d4ff',
+          }}
+        >
+          TARGET TRACK
+        </div>
+        <div
+          style={{
+            color: 'white',
+            fontSize: '12px',
+            marginBottom: '5px',
+            textShadow: '1px 1px 0 #000',
+          }}
+        >
           Instrument: {instrument.toUpperCase()}
         </div>
         <div style={{ color: '#aaa', fontSize: '8px' }}>
@@ -367,41 +545,98 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
       </div>
 
       {/* Controls */}
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '20px' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '12px',
+          marginBottom: '20px',
+          flexWrap: 'wrap',
+        }}
+      >
         <button
           onClick={playTargetTrack}
           disabled={isPlaying || isRecording}
           style={{
             padding: '12px 24px',
-            background: isPlaying ? '#666' : 'linear-gradient(135deg, #4ecdc4, #45b7d1)',
-            color: 'white',
-            border: '3px solid #333',
-            borderRadius: '0px',
+            background:
+              isPlaying || isRecording
+                ? 'linear-gradient(180deg, #666 0%, #444 100%)'
+                : 'linear-gradient(180deg, #00d4ff 0%, #0099cc 100%)',
+            color: isPlaying || isRecording ? '#999' : '#000',
+            border: '4px solid #000',
+            borderRadius: '8px',
             fontSize: '10px',
             fontWeight: 'bold',
-            fontFamily: "'Press Start 2P', monospace",
-            cursor: isPlaying ? 'not-allowed' : 'pointer',
-            boxShadow: '4px 4px 0px #333',
+            fontFamily: 'monospace',
+            cursor: isPlaying || isRecording ? 'not-allowed' : 'pointer',
+            textShadow: isPlaying || isRecording ? '1px 1px 0 #000' : '1px 1px 0 #fff',
+            boxShadow:
+              isPlaying || isRecording
+                ? '0 4px 0 #333'
+                : '0 4px 0 #006699, 0 0 20px rgba(0, 212, 255, 0.5)',
+            letterSpacing: '1px',
+            transition: 'all 0.1s',
+            opacity: isPlaying || isRecording ? 0.6 : 1,
+          }}
+          onMouseDown={(e) => {
+            if (!isPlaying && !isRecording) {
+              e.currentTarget.style.transform = 'translateY(4px)';
+              e.currentTarget.style.boxShadow = '0 0 0 #006699, 0 0 20px rgba(0, 212, 255, 0.5)';
+            }
+          }}
+          onMouseUp={(e) => {
+            if (!isPlaying && !isRecording) {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 0 #006699, 0 0 20px rgba(0, 212, 255, 0.5)';
+            }
           }}
         >
-          {isPlaying ? 'PLAYING...' : '🎵 PLAY TARGET'}
+          {isPlaying ? '🎵 PLAYING...' : '🎵 PLAY TARGET'}
         </button>
 
         <button
           onClick={isRecording ? stopRecording : startRecording}
+          disabled={isPlaying}
           style={{
             padding: '12px 24px',
             background: isRecording
-              ? 'linear-gradient(135deg, #ff6b6b, #ee5a52)'
-              : 'linear-gradient(135deg, #feca57, #ff9ff3)',
-            color: 'white',
-            border: '3px solid #333',
-            borderRadius: '0px',
+              ? 'linear-gradient(180deg, #ff0064 0%, #cc0050 100%)'
+              : isPlaying
+                ? 'linear-gradient(180deg, #666 0%, #444 100%)'
+                : 'linear-gradient(180deg, #00ff00 0%, #00cc00 100%)',
+            color: isPlaying ? '#999' : '#000',
+            border: '4px solid #000',
+            borderRadius: '8px',
             fontSize: '10px',
             fontWeight: 'bold',
-            fontFamily: "'Press Start 2P', monospace",
-            cursor: 'pointer',
-            boxShadow: '4px 4px 0px #333',
+            fontFamily: 'monospace',
+            cursor: isPlaying ? 'not-allowed' : 'pointer',
+            textShadow: isPlaying ? '1px 1px 0 #000' : '1px 1px 0 #fff',
+            boxShadow: isRecording
+              ? '0 4px 0 #990040, 0 0 20px rgba(255, 0, 100, 0.5)'
+              : isPlaying
+                ? '0 4px 0 #333'
+                : '0 4px 0 #006600, 0 0 20px rgba(0, 255, 0, 0.5)',
+            letterSpacing: '1px',
+            transition: 'all 0.1s',
+            opacity: isPlaying ? 0.6 : 1,
+          }}
+          onMouseDown={(e) => {
+            if (!isPlaying) {
+              e.currentTarget.style.transform = 'translateY(4px)';
+              e.currentTarget.style.boxShadow = isRecording
+                ? '0 0 0 #990040, 0 0 20px rgba(255, 0, 100, 0.5)'
+                : '0 0 0 #006600, 0 0 20px rgba(0, 255, 0, 0.5)';
+            }
+          }}
+          onMouseUp={(e) => {
+            if (!isPlaying) {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = isRecording
+                ? '0 4px 0 #990040, 0 0 20px rgba(255, 0, 100, 0.5)'
+                : '0 4px 0 #006600, 0 0 20px rgba(0, 255, 0, 0.5)';
+            }
           }}
         >
           {isRecording ? '⏹️ STOP RECORDING' : '🎤 START RECORDING'}
@@ -410,12 +645,30 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
 
       {/* Recording Status */}
       {isRecording && (
-        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-          <div style={{ color: '#ff6b6b', fontSize: '12px', marginBottom: '5px' }}>
+        <div
+          style={{
+            textAlign: 'center',
+            marginBottom: '20px',
+            padding: '12px',
+            background: 'rgba(255, 0, 100, 0.2)',
+            border: '2px solid #ff0064',
+            borderRadius: '8px',
+            animation: 'pulse 1s ease-in-out infinite',
+          }}
+        >
+          <div
+            style={{
+              color: '#ff0064',
+              fontSize: '14px',
+              marginBottom: '5px',
+              fontWeight: 'bold',
+              textShadow: '0 0 10px #ff0064',
+            }}
+          >
             🔴 RECORDING...
           </div>
-          <div style={{ color: '#aaa', fontSize: '8px' }}>
-            Time: {(currentTime / 1000).toFixed(1)}s | Notes: {recordedNotes.length}
+          <div style={{ color: '#fff', fontSize: '10px' }}>
+            Time: {(currentTime / 1000).toFixed(1)}s | Notes Played: {recordedNotes.length}
           </div>
         </div>
       )}
@@ -425,46 +678,202 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
         <div style={{ marginBottom: '20px' }}>
           <div
             style={{
-              color: '#feca57',
-              fontSize: '12px',
+              color: '#ffff00',
+              fontSize: '14px',
               marginBottom: '10px',
               textAlign: 'center',
+              fontWeight: 'bold',
+              textShadow: '0 0 10px #ffff00, 2px 2px 0 #000',
+              letterSpacing: '2px',
             }}
           >
-            RESULTS
+            📊 RESULTS
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div
               style={{
-                padding: '10px',
-                background: '#333',
+                padding: '15px',
+                background: 'rgba(0, 0, 0, 0.5)',
+                border: '2px solid #0f3460',
                 borderRadius: '8px',
                 textAlign: 'center',
               }}
             >
-              <div style={{ color: '#4ecdc4', fontSize: '8px' }}>ACCURACY</div>
-              <div style={{ color: 'white', fontSize: '16px' }}>{accuracy.toFixed(1)}%</div>
+              <div
+                style={{
+                  color: '#00d4ff',
+                  fontSize: '10px',
+                  marginBottom: '8px',
+                  textShadow: '0 0 10px #00d4ff',
+                }}
+              >
+                ACCURACY
+              </div>
+              <div
+                style={{
+                  color: accuracy >= 80 ? '#00ff00' : accuracy >= 60 ? '#ffff00' : '#ff0064',
+                  fontSize: '24px',
+                  fontWeight: 'bold',
+                  textShadow: `0 0 10px ${accuracy >= 80 ? '#00ff00' : accuracy >= 60 ? '#ffff00' : '#ff0064'}`,
+                }}
+              >
+                {accuracy.toFixed(1)}%
+              </div>
             </div>
             <div
               style={{
-                padding: '10px',
-                background: '#333',
+                padding: '15px',
+                background: 'rgba(0, 0, 0, 0.5)',
+                border: '2px solid #0f3460',
                 borderRadius: '8px',
                 textAlign: 'center',
               }}
             >
-              <div style={{ color: '#feca57', fontSize: '8px' }}>SCORE</div>
-              <div style={{ color: 'white', fontSize: '16px' }}>{score.toFixed(1)}</div>
+              <div
+                style={{
+                  color: '#ffff00',
+                  fontSize: '10px',
+                  marginBottom: '8px',
+                  textShadow: '0 0 10px #ffff00',
+                }}
+              >
+                SCORE
+              </div>
+              <div
+                style={{
+                  color: score >= 80 ? '#00ff00' : score >= 60 ? '#ffff00' : '#ff0064',
+                  fontSize: '24px',
+                  fontWeight: 'bold',
+                  textShadow: `0 0 10px ${score >= 80 ? '#00ff00' : score >= 60 ? '#ffff00' : '#ff0064'}`,
+                }}
+              >
+                {score.toFixed(1)}
+              </div>
+            </div>
+          </div>
+
+          {/* Hit Breakdown */}
+          <div
+            style={{
+              marginTop: '12px',
+              padding: '12px',
+              background: 'rgba(0, 0, 0, 0.5)',
+              border: '2px solid #0f3460',
+              borderRadius: '8px',
+            }}
+          >
+            <div
+              style={{
+                color: '#00d4ff',
+                fontSize: '10px',
+                marginBottom: '8px',
+                textAlign: 'center',
+                textShadow: '0 0 10px #00d4ff',
+              }}
+            >
+              HIT BREAKDOWN
+            </div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: '8px',
+                fontSize: '8px',
+              }}
+            >
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ color: '#00ff00', textShadow: '0 0 5px #00ff00' }}>PERFECT</div>
+                <div style={{ color: '#fff', fontWeight: 'bold' }}>{hitCounts.perfect}</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ color: '#ffff00', textShadow: '0 0 5px #ffff00' }}>GREAT</div>
+                <div style={{ color: '#fff', fontWeight: 'bold' }}>{hitCounts.great}</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ color: '#ff6600', textShadow: '0 0 5px #ff6600' }}>GOOD</div>
+                <div style={{ color: '#fff', fontWeight: 'bold' }}>{hitCounts.good}</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ color: '#ff0064', textShadow: '0 0 5px #ff0064' }}>MISS</div>
+                <div style={{ color: '#fff', fontWeight: 'bold' }}>{hitCounts.miss}</div>
+              </div>
             </div>
           </div>
         </div>
       )}
 
+      {/* Instrument Interface */}
+      <div style={{ marginBottom: '20px' }}>
+        <div
+          style={{
+            color: '#4ecdc4',
+            fontSize: '10px',
+            marginBottom: '10px',
+            textAlign: 'center',
+          }}
+        >
+          {isRecording ? '🎤 RECORDING - PLAY THE INSTRUMENT' : '🎹 INSTRUMENT'}
+        </div>
+        <div
+          style={{
+            background: '#1a1a1a',
+            padding: '15px',
+            borderRadius: '8px',
+            border: isRecording ? '3px solid #ff6b6b' : '3px solid #333',
+            transition: 'border-color 0.3s',
+          }}
+        >
+          {instrument === 'drums' && (
+            <DrumKit
+              onNotePlay={(note, velocity) => handleNotePlay(note, velocity)}
+              isRecording={isRecording}
+              activeNotes={activeNotes as Set<DrumType>}
+            />
+          )}
+          {instrument === 'piano' && (
+            <Piano
+              onNotePlay={handleNotePlay}
+              isRecording={isRecording}
+              activeNotes={activeNotes}
+            />
+          )}
+          {instrument === 'bass' && (
+            <Bass
+              onNotePlay={handleNotePlay}
+              isRecording={isRecording}
+              activeNotes={activeNotes}
+              selectedFret={0}
+            />
+          )}
+          {instrument === 'synth' && (
+            <Synth
+              onNotePlay={handleNotePlay}
+              isRecording={isRecording}
+              activeNotes={activeNotes}
+            />
+          )}
+        </div>
+      </div>
+
       {/* Instructions */}
-      <div style={{ textAlign: 'center', fontSize: '8px', color: '#aaa', lineHeight: 1.5 }}>
+      <div
+        style={{
+          textAlign: 'center',
+          fontSize: '9px',
+          color: '#aaa',
+          lineHeight: 1.8,
+          padding: '12px',
+          background: 'rgba(0, 0, 0, 0.3)',
+          border: '1px solid #0f3460',
+          borderRadius: '8px',
+        }}
+      >
+        <div style={{ color: '#00d4ff', marginBottom: '8px', fontWeight: 'bold' }}>
+          📖 HOW TO PLAY
+        </div>
         <div>1. CLICK "PLAY TARGET" TO HEAR THE ORIGINAL</div>
         <div>2. CLICK "START RECORDING" TO BEGIN YOUR ATTEMPT</div>
-        <div>3. PLAY THE SAME NOTES IN THE SAME TIMING</div>
+        <div>3. PLAY THE INSTRUMENT ABOVE TO REPLICATE THE PATTERN</div>
         <div>4. CLICK "STOP RECORDING" WHEN DONE</div>
       </div>
 
@@ -475,17 +884,29 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
             position: 'absolute',
             top: '10px',
             right: '10px',
-            background: '#ff6b6b',
+            background: 'linear-gradient(135deg, #ff0064, #cc0050)',
             color: 'white',
-            padding: '5px 10px',
-            borderRadius: '4px',
-            fontSize: '8px',
+            padding: '8px 16px',
+            borderRadius: '8px',
+            border: '2px solid #000',
+            fontSize: '10px',
             fontWeight: 'bold',
+            boxShadow: '0 4px 0 #990040, 0 0 20px rgba(255, 0, 100, 0.5)',
+            textShadow: '1px 1px 0 #000',
+            letterSpacing: '1px',
           }}
         >
-          CHALLENGE MODE
+          🏆 CHALLENGE MODE
         </div>
       )}
+
+      {/* CSS Animations */}
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.8; transform: scale(1.02); }
+        }
+      `}</style>
     </div>
   );
 };

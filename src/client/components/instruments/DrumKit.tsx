@@ -10,69 +10,83 @@ type DrumKitProps = {
 };
 
 const DRUM_LAYOUT = [
+  // Cymbals - top corners
   {
     type: 'crash' as DrumType,
     label: 'CRASH',
     key: 'Q',
-    position: { row: 0, col: 0 },
+    size: 'cymbal',
+    position: { top: '5%', left: '8%' },
     color: '#ff6b6b',
     icon: '💥',
   },
   {
+    type: 'ride' as DrumType,
+    label: 'RIDE',
+    key: 'E',
+    size: 'cymbal',
+    position: { top: '5%', right: '8%' },
+    color: '#4ecdc4',
+    icon: '🔔',
+  },
+  // Toms - mounted above snare
+  {
     type: 'tom1' as DrumType,
     label: 'TOM 1',
     key: 'W',
-    position: { row: 0, col: 1 },
+    size: 'tom',
+    position: { top: '18%', left: '28%' },
     color: '#45b7d1',
     icon: '🥁',
   },
   {
     type: 'tom2' as DrumType,
     label: 'TOM 2',
-    key: 'E',
-    position: { row: 0, col: 2 },
+    key: 'R',
+    size: 'tom',
+    position: { top: '18%', right: '28%' },
     color: '#96ceb4',
     icon: '🥁',
   },
-  {
-    type: 'ride' as DrumType,
-    label: 'RIDE',
-    key: 'R',
-    position: { row: 0, col: 3 },
-    color: '#4ecdc4',
-    icon: '🔔',
-  },
+  // Hi-hat - left side
   {
     type: 'hihat' as DrumType,
     label: 'HI-HAT',
     key: 'A',
-    position: { row: 1, col: 0 },
+    size: 'small-cymbal',
+    position: { top: '42%', left: '5%' },
     color: '#ff9ff3',
     icon: '🎵',
   },
+  // Snare - center
   {
     type: 'snare' as DrumType,
     label: 'SNARE',
     key: 'S',
-    position: { row: 1, col: 1 },
+    size: 'snare',
+    position: { top: '48%', left: '50%', transform: 'translateX(-50%)' },
     color: '#feca57',
     icon: '🎯',
   },
-  {
-    type: 'kick' as DrumType,
-    label: 'KICK',
-    key: 'D',
-    position: { row: 1, col: 2 },
-    color: '#5f27cd',
-    icon: '💥',
-  },
+  // Open hi-hat - right side
   {
     type: 'openhat' as DrumType,
     label: 'OPEN HAT',
-    key: 'F',
-    position: { row: 1, col: 3 },
+    key: 'D',
+    size: 'small-cymbal',
+    position: { top: '42%', right: '5%' },
     color: '#54a0ff',
     icon: '🎶',
+  },
+  // Kick drum - bottom center
+  {
+    type: 'kick' as DrumType,
+    label: 'KICK',
+    key: 'SPACE',
+    size: 'kick',
+    position: { bottom: '8%', left: '50%', transform: 'translateX(-50%)' },
+    color: '#5f27cd',
+    icon: '💥',
   },
 ];
 
@@ -86,7 +100,7 @@ export const DrumKit: React.FC<DrumKitProps> = ({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const key = e.key.toUpperCase();
+      const key = e.key === ' ' ? 'SPACE' : e.key.toUpperCase();
 
       // Prevent repeat triggers
       if (pressedKeys.current.has(key)) return;
@@ -100,7 +114,7 @@ export const DrumKit: React.FC<DrumKitProps> = ({
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      const key = e.key.toUpperCase();
+      const key = e.key === ' ' ? 'SPACE' : e.key.toUpperCase();
       pressedKeys.current.delete(key);
     };
 
@@ -121,10 +135,20 @@ export const DrumKit: React.FC<DrumKitProps> = ({
   const getDrumPadStyle = (drum: (typeof DRUM_LAYOUT)[0]) => {
     const isActive = activeNotes?.has(drum.type) || false;
 
+    const sizes = {
+      'kick': { width: '140px', height: '140px' },
+      'snare': { width: '110px', height: '110px' },
+      'tom': { width: '90px', height: '90px' },
+      'cymbal': { width: '100px', height: '100px' },
+      'small-cymbal': { width: '85px', height: '85px' },
+    };
+
+    const size = sizes[drum.size as keyof typeof sizes];
+
     return {
       padding: '0',
       margin: '0',
-      borderRadius: '8px',
+      borderRadius: '50%',
       border: '4px solid #000',
       background: isActive ? drum.color : '#2a2a2a',
       color: isActive ? '#000' : '#fff',
@@ -134,8 +158,8 @@ export const DrumKit: React.FC<DrumKitProps> = ({
       cursor: 'pointer',
       userSelect: 'none' as const,
       transition: 'all 0.1s ease',
-      width: '100%',
-      aspectRatio: '1',
+      width: size.width,
+      height: size.height,
       textAlign: 'center' as const,
       display: 'flex',
       flexDirection: 'column' as const,
@@ -147,10 +171,11 @@ export const DrumKit: React.FC<DrumKitProps> = ({
         : 'inset 0 -4px 0 rgba(0,0,0,0.5), 0 4px 0 #000',
       transform: isActive ? 'translateY(4px)' : 'translateY(0)',
       textShadow: isActive ? '1px 1px 0px rgba(0,0,0,0.5)' : '2px 2px 0px #000',
-      position: 'relative' as const,
+      position: 'absolute' as const,
       overflow: 'hidden',
       WebkitTapHighlightColor: 'transparent',
       touchAction: 'manipulation',
+      ...drum.position,
     };
   };
 
@@ -161,7 +186,7 @@ export const DrumKit: React.FC<DrumKitProps> = ({
         background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
         borderRadius: '16px',
         width: '100%',
-        maxWidth: '600px',
+        maxWidth: '700px',
         margin: '0 auto',
         border: '4px solid #000',
         boxShadow: '0 8px 0 #000, 0 12px 30px rgba(0,0,0,0.6)',
@@ -218,46 +243,42 @@ export const DrumKit: React.FC<DrumKitProps> = ({
         )}
       </div>
 
-      {/* Drum Grid */}
+      {/* Drum Kit - Real drum layout */}
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gridTemplateRows: 'repeat(2, 1fr)',
-          gap: '12px',
+          position: 'relative',
+          width: '100%',
+          height: '500px',
           marginBottom: '16px',
+          background:
+            'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.05) 0%, transparent 70%)',
         }}
       >
         {DRUM_LAYOUT.map((drum) => (
-          <div
+          <button
             key={drum.type}
-            style={{
-              gridRow: drum.position.row + 1,
-              gridColumn: drum.position.col + 1,
-            }}
+            style={getDrumPadStyle(drum)}
+            onMouseDown={(e) => handleDrumHit(drum.type, e)}
+            onTouchStart={(e) => handleDrumHit(drum.type, e)}
+            disabled={false}
           >
-            <button
-              style={getDrumPadStyle(drum)}
-              onMouseDown={(e) => handleDrumHit(drum.type, e)}
-              onTouchStart={(e) => handleDrumHit(drum.type, e)}
-              disabled={false}
+            <span style={{ fontSize: drum.size === 'kick' ? '24px' : '18px', lineHeight: 1 }}>
+              {drum.icon}
+            </span>
+            <span style={{ fontSize: '6px', lineHeight: 1.2 }}>{drum.label}</span>
+            <div
+              style={{
+                marginTop: '2px',
+                padding: '2px 4px',
+                background: 'rgba(0,0,0,0.3)',
+                borderRadius: '4px',
+                fontSize: '5px',
+                border: '2px solid rgba(255,255,255,0.2)',
+              }}
             >
-              <span style={{ fontSize: '20px', lineHeight: 1 }}>{drum.icon}</span>
-              <span style={{ fontSize: '8px', lineHeight: 1.2 }}>{drum.label}</span>
-              <div
-                style={{
-                  marginTop: '4px',
-                  padding: '2px 6px',
-                  background: 'rgba(0,0,0,0.3)',
-                  borderRadius: '4px',
-                  fontSize: '8px',
-                  border: '2px solid rgba(255,255,255,0.2)',
-                }}
-              >
-                {drum.key}
-              </div>
-            </button>
-          </div>
+              {drum.key}
+            </div>
+          </button>
         ))}
       </div>
 
@@ -289,7 +310,7 @@ export const DrumKit: React.FC<DrumKitProps> = ({
             lineHeight: 1.6,
           }}
         >
-          QWER / ASDF KEYS
+          Q W E R / A S D / SPACE
         </div>
       </div>
 
@@ -310,12 +331,12 @@ export const DrumKit: React.FC<DrumKitProps> = ({
           transform: translateY(4px) !important;
         }
 
-        @media (max-width: 640px) {
+        @media (max-width: 768px) {
           button {
             font-size: 8px !important;
           }
           button span:first-child {
-            font-size: 16px !important;
+            font-size: 14px !important;
           }
         }
       `}</style>

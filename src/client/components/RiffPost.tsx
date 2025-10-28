@@ -4,6 +4,7 @@ import type { GetCompositionResponse } from '../../shared/types/api.js';
 import { generateCompositionPreview } from '../../shared/utils/previewGenerator.js';
 import { PlaybackEngine } from './PlaybackEngine.js';
 import { CompositionPreview } from './CompositionPreview.js';
+import { AudioInitButton } from './AudioInitButton.js';
 
 type RiffPostProps = {
   postId: string;
@@ -27,6 +28,7 @@ export const RiffPost: React.FC<RiffPostProps> = ({
   const [loadingState, setLoadingState] = useState<LoadingState>('idle');
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [audioInitialized, setAudioInitialized] = useState(false);
 
   // Load composition data
   const loadComposition = useCallback(async () => {
@@ -181,7 +183,25 @@ export const RiffPost: React.FC<RiffPostProps> = ({
   const preview = generateCompositionPreview(composition);
 
   return (
-    <div className="flex flex-col gap-6 p-6 bg-white rounded-lg border shadow-sm">
+    <div
+      style={{
+        padding: '16px',
+        background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%)',
+        borderRadius: '8px',
+        border: '2px solid #0f3460',
+        fontFamily: 'monospace',
+        position: 'relative',
+      }}
+    >
+      {/* Audio Initialization Button */}
+      <div style={{ position: 'fixed', top: '80px', right: '20px', zIndex: 9999 }}>
+        <AudioInitButton
+          onAudioInitialized={() => {
+            setAudioInitialized(true);
+          }}
+          position="top-right"
+        />
+      </div>
       {/* Enhanced Composition Preview */}
       <CompositionPreview preview={preview} compact={false} showWaveform={true} />
 

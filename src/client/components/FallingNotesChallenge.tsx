@@ -7,6 +7,7 @@ import type {
   ScoringWeights,
 } from '../../shared/types/music.js';
 import type { DhwaniAudioEngine } from '../audio/DhwaniAudioEngine.js';
+import { AudioInitButton } from './AudioInitButton.js';
 
 // Local type definitions for notes
 type PianoNote = 'C4' | 'D4' | 'E4' | 'F4' | 'G4' | 'A4' | 'B4' | 'C5';
@@ -57,7 +58,6 @@ interface FallingNotesChallengeProps {
   isActive: boolean;
   onComplete: () => void;
   songPattern?: (DrumType | PianoNote | BassNote | SynthNote)[];
-  songDuration?: number;
   songNotes?: Array<{
     note: DrumType | PianoNote | BassNote | SynthNote;
     startTime: number;
@@ -87,20 +87,12 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
   isActive,
   onComplete,
   songPattern,
-  songDuration,
   songNotes,
   challengeMode = 'practice',
   scoreWeights = { timing: 0.7, accuracy: 0.3 },
   onChallengeComplete,
   audioEngine,
 }: FallingNotesChallengeProps) => {
-  console.log('FallingNotesChallenge: Component rendered with props:', {
-    instrument,
-    songNotes: songNotes?.length || 0,
-    audioEngine: !!audioEngine,
-    isActive,
-    difficulty,
-  });
   const [notes, setNotes] = useState<FallingNote[]>([]);
   const [score, setScore] = useState(0);
   const [accuracy, setAccuracy] = useState(100);
@@ -119,9 +111,9 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
       console.log('FallingNotesChallenge: Audio engine provided:', audioEngine);
       const checkAudioStatus = () => {
         try {
-          const stats = audioEngine.getPerformanceStats();
-          console.log('FallingNotesChallenge: Audio stats:', stats);
-          setAudioInitialized(stats.isInitialized);
+          const engineState = audioEngine.getEngineState();
+          console.log('FallingNotesChallenge: Audio engine state:', engineState);
+          setAudioInitialized(engineState.isInitialized);
         } catch (error) {
           console.error('FallingNotesChallenge: Error checking audio status:', error);
           setAudioInitialized(false);
@@ -143,8 +135,8 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
       console.log('FallingNotesChallenge: Audio engine became available, checking status...');
       const checkStatus = () => {
         try {
-          const stats = audioEngine.getPerformanceStats();
-          if (stats.isInitialized) {
+          const engineState = audioEngine.getEngineState();
+          if (engineState.isInitialized) {
             console.log('FallingNotesChallenge: Audio engine is now initialized');
             setAudioInitialized(true);
           }
@@ -164,11 +156,27 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
     if (audioEngine) {
       try {
         console.log('FallingNotesChallenge: Initializing audio engine...');
+
+        // First, try to unlock the audio context with a user gesture
+        const AudioContextClass =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        if (AudioContextClass) {
+          const tempContext = new AudioContextClass();
+          if (tempContext.state === 'suspended') {
+            await tempContext.resume();
+            console.log('FallingNotesChallenge: Audio context unlocked');
+          }
+          void tempContext.close();
+        }
+
         await audioEngine.initialize();
         console.log('FallingNotesChallenge: Audio initialized successfully');
         setAudioInitialized(true);
       } catch (error) {
         console.error('FallingNotesChallenge: Failed to initialize audio:', error);
+        // Still allow the game to start
+        setAudioInitialized(true);
       }
     } else {
       console.log('FallingNotesChallenge: No audio engine available for initialization');
@@ -378,6 +386,9 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
     }
 
     // Process notes - check for missed notes and duration completion
+    let allNotesProcessed = false;
+    let noActiveNotes = false;
+
     setNotes((prevNotes) => {
       const updatedNotes = prevNotes
         .map((note) => {
@@ -440,56 +451,75 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
           return position < 500;
         });
 
+      // Check if all notes have been processed (hit or missed)
+      allNotesProcessed = songNotes ? songNotesIndexRef.current >= songNotes.length : false;
+      noActiveNotes = updatedNotes.every((note) => note.hit || note.missed);
+
       return updatedNotes;
     });
 
-    // Check if all notes have been processed (hit or missed)
-    const allNotesProcessed = songNotes ? songNotesIndexRef.current >= songNotes.length : false;
-    const noActiveNotes = notes.every((note) => note.hit || note.missed);
-
-    // Also check if we've exceeded the song duration as a fallback
-    const gameDuration = songDuration || 30000;
-    const timeExpired = elapsed >= gameDuration;
-
+    // Check if game should end
     if (allNotesProcessed && noActiveNotes) {
       // All notes have been processed, end the challenge
-      stopChallenge();
-      onComplete();
-      return;
-    } else if (timeExpired) {
-      // Fallback: if time expires, end the challenge
       stopChallenge();
       onComplete();
       return;
     }
 
     animationRef.current = requestAnimationFrame(gameLoop);
-  }, [
-    isPlaying,
-    settings,
-    generateNote,
-    stopChallenge,
-    onComplete,
-    songDuration,
-    songNotes,
-    notes,
-    instrument,
-  ]);
+  }, [isPlaying, settings, generateNote, stopChallenge, onComplete, songNotes, instrument]);
 
   const startChallenge = useCallback(async () => {
     console.log('FallingNotesChallenge: Starting challenge with songNotes:', songNotes);
 
     // Ensure audio engine is initialized before starting
-    if (audioEngine && !audioInitialized) {
-      console.log('FallingNotesChallenge: Audio engine not initialized, initializing...');
+    if (audioEngine) {
+      console.log('FallingNotesChallenge: Audio engine available, ensuring initialization...');
       try {
-        await audioEngine.initialize();
-        console.log('FallingNotesChallenge: Audio engine initialized successfully');
-        setAudioInitialized(true);
+        const currentState = audioEngine.getState();
+        console.log('FallingNotesChallenge: Current audio state:', currentState);
+
+        // Wait for initialization to complete if it's loading
+        if (currentState === 'loading') {
+          console.log('FallingNotesChallenge: Waiting for audio engine to finish loading...');
+          // Wait up to 5 seconds for initialization
+          let attempts = 0;
+          while (audioEngine.getState() === 'loading' && attempts < 50) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            attempts++;
+          }
+          const finalState = audioEngine.getState();
+          console.log('FallingNotesChallenge: Audio state after waiting:', finalState);
+
+          if (finalState === 'loading') {
+            console.warn('FallingNotesChallenge: Audio engine still loading after timeout');
+          }
+        }
+
+        // Initialize if idle
+        if (audioEngine.getState() === 'idle') {
+          console.log('FallingNotesChallenge: Initializing audio engine...');
+          await audioEngine.initialize();
+        }
+
+        // Check if initialized
+        const engineState = audioEngine.getEngineState();
+        console.log('FallingNotesChallenge: Audio engine state after init:', engineState);
+        setAudioInitialized(engineState.isInitialized);
+
+        if (!engineState.isInitialized) {
+          console.error('FallingNotesChallenge: Audio engine failed to initialize properly');
+          // Still allow game to start
+          setAudioInitialized(true);
+        }
       } catch (error) {
         console.error('FallingNotesChallenge: Failed to initialize audio engine:', error);
         // Continue anyway - audio is optional
+        setAudioInitialized(true);
       }
+    } else {
+      console.log('FallingNotesChallenge: No audio engine provided');
+      setAudioInitialized(true);
     }
 
     setIsPlaying(true);
@@ -525,7 +555,7 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
       cancelAnimationFrame(animationRef.current);
     }
     animationRef.current = requestAnimationFrame(gameLoop);
-  }, [gameLoop, songNotes, audioEngine, audioInitialized]);
+  }, [gameLoop, songNotes, audioEngine]);
 
   const handleNoteRelease = useCallback((lane: number) => {
     setNotes((prevNotes) => {
@@ -648,7 +678,7 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
         );
 
         // Try to play the note directly if audio engine is available
-        if (audioEngine) {
+        if (audioEngine && audioInitialized) {
           try {
             console.log(
               'FallingNotesChallenge: Attempting to play note directly with audio engine'
@@ -656,10 +686,14 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
             audioEngine.playNote(instrument, note.note, note.velocity);
           } catch (error) {
             console.error('FallingNotesChallenge: Error playing note directly:', error);
+            // Fallback to parent callback
+            onNoteHit(note.note, note.velocity);
           }
+        } else {
+          // Fallback to parent callback if no audio engine
+          console.log('FallingNotesChallenge: Using fallback audio via parent callback');
+          onNoteHit(note.note, note.velocity);
         }
-
-        onNoteHit(note.note, note.velocity);
 
         // Instead of removing the note immediately, mark it as being held
         const updatedNote = {
@@ -778,6 +812,51 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
     [isPlaying, heldKeys, handleNoteRelease]
   );
 
+  const handleTouchStart = useCallback(
+    (lane: number) => {
+      if (!isPlaying) return;
+
+      if (!heldKeys.has(lane)) {
+        setHeldKeys((prev) => new Set(prev).add(lane));
+        setKeyPresses((prev) => new Set(prev).add(lane));
+
+        const hitNote = notes.find((note) => {
+          if (note.lane !== lane || note.hit || note.missed) return false;
+          const elapsed = Date.now() - note.startTime;
+          const notePosition = (elapsed / 1000) * settings.speed;
+          const hitLinePosition = 400;
+          return Math.abs(notePosition - hitLinePosition) <= HIT_WINDOW;
+        });
+
+        if (hitNote?.id) {
+          handleNoteHit(hitNote.id, lane);
+        }
+      }
+    },
+    [isPlaying, heldKeys, notes, settings.speed, handleNoteHit]
+  );
+
+  const handleTouchEnd = useCallback(
+    (lane: number) => {
+      if (!isPlaying) return;
+
+      if (heldKeys.has(lane)) {
+        setHeldKeys((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(lane);
+          return newSet;
+        });
+        setKeyPresses((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(lane);
+          return newSet;
+        });
+        handleNoteRelease(lane);
+      }
+    },
+    [isPlaying, heldKeys, handleNoteRelease]
+  );
+
   useEffect(() => {
     if (isActive && !isPlaying) {
       void startChallenge();
@@ -818,12 +897,10 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: false }); // Disable alpha for better performance
     if (!ctx) return;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Background with scanlines
+    // Clear canvas efficiently with background
     ctx.fillStyle = '#0a0a0a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -926,23 +1003,62 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
         else if (inWindow) color = '#00ff00';
         else if (note.isBeingHeld) color = '#ffff00'; // Yellow for held notes
 
-        // Draw note duration trail
+        // Draw note duration trail with enhanced UX
         if (note.duration > 0) {
           const durationHeight = (note.duration / 1000) * settings.speed;
           const trailY = y - durationHeight;
 
-          // Duration trail gradient
+          // Calculate progress if note is being held
+          let holdProgress = 0;
+          if (note.isBeingHeld && note.hitStartTime) {
+            const heldDuration = now - note.hitStartTime;
+            holdProgress = Math.min(1, heldDuration / note.duration);
+          }
+
+          // Duration trail gradient with progress indication
           const trailGradient = ctx.createLinearGradient(x, trailY, x, y);
-          trailGradient.addColorStop(0, 'rgba(0, 217, 255, 0.3)');
-          trailGradient.addColorStop(1, 'rgba(0, 217, 255, 0.8)');
+          if (note.isBeingHeld) {
+            // Show progress with different colors
+            trailGradient.addColorStop(0, 'rgba(255, 255, 0, 0.2)');
+            trailGradient.addColorStop(holdProgress, 'rgba(0, 255, 0, 0.8)');
+            trailGradient.addColorStop(holdProgress + 0.01, 'rgba(255, 255, 0, 0.8)');
+            trailGradient.addColorStop(1, 'rgba(255, 255, 0, 0.8)');
+          } else {
+            trailGradient.addColorStop(0, 'rgba(0, 217, 255, 0.3)');
+            trailGradient.addColorStop(1, 'rgba(0, 217, 255, 0.8)');
+          }
 
           ctx.fillStyle = trailGradient;
           ctx.fillRect(x - 15, trailY, 30, durationHeight);
 
-          // Duration trail border
-          ctx.strokeStyle = '#00d9ff';
-          ctx.lineWidth = 2;
+          // Duration trail border with pulsing effect for held notes
+          if (note.isBeingHeld) {
+            const pulseIntensity = 0.5 + 0.5 * Math.sin(now / 100);
+            ctx.strokeStyle = `rgba(255, 255, 0, ${pulseIntensity})`;
+            ctx.lineWidth = 3;
+          } else {
+            ctx.strokeStyle = '#00d9ff';
+            ctx.lineWidth = 2;
+          }
           ctx.strokeRect(x - 15, trailY, 30, durationHeight);
+
+          // Progress indicator for held notes
+          if (note.isBeingHeld && holdProgress > 0) {
+            const progressHeight = durationHeight * holdProgress;
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.6)';
+            ctx.fillRect(x - 12, y - progressHeight, 24, progressHeight);
+          }
+
+          // Duration text indicator
+          if (note.duration > 500) {
+            // Only show for notes longer than 0.5s
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 10px monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const durationText = `${(note.duration / 1000).toFixed(1)}s`;
+            ctx.fillText(durationText, x, trailY - 10);
+          }
         }
 
         // Note glow
@@ -985,9 +1101,13 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
 
   useEffect(() => {
     if (isPlaying) {
-      renderGame();
-      const interval = setInterval(renderGame, 16);
-      return () => clearInterval(interval);
+      let animationId: number;
+      const animate = () => {
+        renderGame();
+        animationId = requestAnimationFrame(animate);
+      };
+      animationId = requestAnimationFrame(animate);
+      return () => cancelAnimationFrame(animationId);
     }
   }, [isPlaying, renderGame]);
 
@@ -1080,8 +1200,78 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
               : '⚠️ NO AUDIO ENGINE'}
         </div>
 
+        {/* Test Audio Button */}
+        {audioEngine && (
+          <button
+            onClick={async () => {
+              try {
+                // Resume audio context first
+                const engineState = audioEngine.getEngineState();
+                console.log('FallingNotesChallenge: Current audio engine state:', engineState);
+
+                if (!engineState.isInitialized) {
+                  console.log('FallingNotesChallenge: Initializing audio engine...');
+                  await audioEngine.initialize();
+                  console.log('FallingNotesChallenge: Audio engine initialized');
+                }
+
+                console.log(
+                  'FallingNotesChallenge: Testing audio with note:',
+                  instrument === 'drums' ? 'kick' : 'C4'
+                );
+                audioEngine.playNote(instrument, instrument === 'drums' ? 'kick' : 'C4', 0.8);
+                console.log('FallingNotesChallenge: Test note played successfully');
+              } catch (error) {
+                console.error('FallingNotesChallenge: Test audio failed:', error);
+                alert(
+                  'Audio test failed: ' + (error instanceof Error ? error.message : String(error))
+                );
+              }
+            }}
+            style={{
+              padding: '8px 16px',
+              background: 'linear-gradient(45deg, #4ecdc4, #44a08d)',
+              color: '#fff',
+              border: '3px solid #000',
+              borderRadius: '8px',
+              fontSize: '10px',
+              fontWeight: 'bold',
+              fontFamily: 'monospace',
+              cursor: 'pointer',
+              textShadow: '1px 1px 0 #000',
+              boxShadow: '0 4px 0 #000, 0 0 20px rgba(78, 205, 196, 0.5)',
+              transition: 'all 0.1s ease',
+              marginBottom: '16px',
+              letterSpacing: '1px',
+            }}
+          >
+            🔊 TEST AUDIO
+          </button>
+        )}
+
         <button
-          onClick={startChallenge}
+          onClick={async () => {
+            // Ensure audio context is ready before starting
+            if (audioEngine && audioInitialized) {
+              try {
+                // Resume audio context if suspended
+                const engineState = audioEngine.getEngineState();
+                if (!engineState.isInitialized) {
+                  console.log(
+                    'FallingNotesChallenge: Initializing audio engine before game start...'
+                  );
+                  await audioEngine.initialize();
+                }
+
+                // Play a test sound to verify audio is working
+                console.log('FallingNotesChallenge: Playing test sound before starting');
+                audioEngine.playNote(instrument, instrument === 'drums' ? 'kick' : 'C4', 0.7);
+              } catch (error) {
+                console.error('FallingNotesChallenge: Test sound failed:', error);
+              }
+            }
+            await startChallenge();
+          }}
           disabled={false} // Allow starting even without audio
           style={{
             padding: '16px 32px',
@@ -1116,17 +1306,31 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
   return (
     <div
       style={{
-        padding: '20px',
+        padding: '16px',
         background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%)',
         border: '4px solid #0f3460',
         boxShadow: '0 0 30px rgba(0, 212, 255, 0.4), inset 0 0 30px rgba(0, 0, 0, 0.5)',
         fontFamily: 'monospace',
         overflow: 'hidden',
-        maxWidth: '100%',
+        maxWidth: '100vw',
         width: '100%',
         boxSizing: 'border-box',
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        position: 'relative',
       }}
     >
+      {/* Audio Initialization Button */}
+      <div style={{ position: 'fixed', top: '80px', right: '20px', zIndex: 9999 }}>
+        <AudioInitButton
+          onAudioInitialized={() => {
+            setAudioInitialized(true);
+          }}
+          position="top-right"
+        />
+      </div>
+
       {/* Game Stats */}
       <div
         style={{
@@ -1242,18 +1446,22 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
           width: '100%',
           display: 'flex',
           justifyContent: 'center',
+          flex: 1,
         }}
       >
         <canvas
           ref={canvasRef}
           width={320}
-          height={500}
+          height={480}
           style={{
             border: '4px solid #0f3460',
             background: '#0a0a0a',
             boxShadow: '0 0 20px rgba(0, 212, 255, 0.3), inset 0 0 30px rgba(0, 0, 0, 0.8)',
-            maxWidth: '100%',
+            maxWidth: 'calc(100vw - 40px)',
+            maxHeight: 'calc(100vh - 300px)',
+            width: 'auto',
             height: 'auto',
+            objectFit: 'contain',
           }}
         />
       </div>
@@ -1263,22 +1471,32 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
         style={{
           display: 'flex',
           justifyContent: 'center',
-          gap: '8px',
+          gap: '4px',
           marginBottom: '12px',
+          flexWrap: 'wrap',
+          padding: '0 8px',
         }}
       >
         {['A/1', 'S/2', 'D/3', 'F/4'].map((key, i) => (
-          <div
+          <button
             key={i}
+            onTouchStart={(e) => {
+              e.preventDefault();
+              handleTouchStart(i);
+            }}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              handleTouchEnd(i);
+            }}
             style={{
-              padding: '12px 16px',
+              padding: '8px 12px',
               background: keyPresses.has(i)
                 ? 'linear-gradient(180deg, #00ff00 0%, #00cc00 100%)'
                 : 'linear-gradient(180deg, #333 0%, #222 100%)',
               border: '3px solid #000',
               borderRadius: '4px',
               color: keyPresses.has(i) ? '#000' : '#fff',
-              fontSize: '12px',
+              fontSize: '10px',
               fontWeight: 'bold',
               boxShadow: keyPresses.has(i)
                 ? '0 0 15px #00ff00, inset 0 2px 4px rgba(255,255,255,0.3)'
@@ -1286,10 +1504,17 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
               transform: keyPresses.has(i) ? 'translateY(4px)' : 'translateY(0)',
               transition: 'all 0.05s',
               textShadow: keyPresses.has(i) ? 'none' : '1px 1px 0 #000',
+              minWidth: '60px',
+              textAlign: 'center',
+              flex: '1 1 auto',
+              maxWidth: '80px',
+              cursor: 'pointer',
+              userSelect: 'none',
+              WebkitTapHighlightColor: 'transparent',
             }}
           >
             {key}
-          </div>
+          </button>
         ))}
       </div>
 
@@ -1313,6 +1538,24 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
           0% { transform: scale(0.8); opacity: 0; }
           50% { transform: scale(1.2); opacity: 1; }
           100% { transform: scale(1); opacity: 1; }
+        }
+        
+        /* Prevent scrollbars and ensure proper mobile layout */
+        body {
+          overflow-x: hidden;
+        }
+        
+        /* Improve touch responsiveness */
+        button {
+          -webkit-tap-highlight-color: transparent;
+          touch-action: manipulation;
+        }
+        
+        /* Ensure canvas scales properly */
+        canvas {
+          image-rendering: pixelated;
+          image-rendering: -moz-crisp-edges;
+          image-rendering: crisp-edges;
         }
       `}</style>
     </div>

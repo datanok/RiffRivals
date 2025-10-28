@@ -245,7 +245,7 @@ export class AudioContextManager {
   async suspendAudioContext() {
     if (this.audioContext && this.audioContext.state === 'running') {
       try {
-        await this.audioContext.suspend();
+        // await this.audioContext.suspend();
         console.log('Audio context suspended for resource conservation');
       } catch (error) {
         console.warn('Failed to suspend audio context:', error);

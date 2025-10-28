@@ -18,11 +18,7 @@ import { DrumKitSynth } from './DrumKitSynth.js';
 import { PianoSynth } from './PianoSynth.js';
 import { BassSynth } from './BassSynth.js';
 import { SynthSynth } from './SynthSynth.js';
-import {
-  audioManager,
-  PerformanceMonitor,
-  CompositionChunker,
-} from '../utils/performanceOptimizations.js';
+// Removed performance optimizations for debugging
 
 export class DhwaniAudioEngine implements IAudioEngine {
   private state: AudioEngineState = 'idle';
@@ -43,7 +39,8 @@ export class DhwaniAudioEngine implements IAudioEngine {
 
   constructor(config?: Partial<AudioEngineConfig>) {
     this.config = { ...DEFAULT_AUDIO_CONFIG, ...config };
-    this.masterGain = new Tone.Gain(this.config.masterVolume).toDestination();
+    this.masterGain = new Tone.Gain(this.config.masterVolume);
+    console.log('DhwaniAudioEngine: Constructor - Master gain created');
   }
 
   async initialize(): Promise<void> {
@@ -52,59 +49,40 @@ export class DhwaniAudioEngine implements IAudioEngine {
       return;
     }
 
-    const endTiming = PerformanceMonitor.startTiming('audio_engine_init');
-
     try {
       console.log('Setting audio engine state to loading...');
       this.state = 'loading';
 
-      // Initialize audio context with proper management
-      console.log('Initializing audio context...');
-      const audioContext = await audioManager.initializeAudioContext();
-      console.log('Audio context initialized:', audioContext.state);
-
-      // Set Tone.js to use our managed audio context
-      console.log('Setting Tone.js context...');
-      if (Tone.getContext().rawContext !== audioContext) {
-        Tone.setContext(audioContext);
-        console.log('Tone.js context updated');
-      }
-
-      // Start Tone.js audio context
+      // Start Tone.js
       console.log('Starting Tone.js...');
       await Tone.start();
-      console.log('Tone.js started successfully');
+      console.log('Tone.js started, context state:', Tone.getContext().state);
 
-      // Initialize instruments lazily
+      // Connect master gain to destination
+      console.log('Connecting master gain to destination...');
+      this.masterGain.toDestination();
+      console.log('Master gain connected successfully');
+
+      // Initialize instruments
       console.log('Initializing instruments...');
       await this.initializeDrums();
       console.log('Drums initialized');
+
       await this.initializePiano();
       console.log('Piano initialized');
+
       await this.initializeBass();
       console.log('Bass initialized');
+
       await this.initializeSynth();
       console.log('Synth initialized');
-
-      // Register cleanup callback
-      audioManager.registerCleanup(() => {
-        this.dispose();
-      });
 
       this.isInitialized = true;
       this.state = 'idle';
       console.log('Audio engine initialization completed successfully');
-
-      endTiming();
     } catch (error) {
       console.error('Failed to initialize audio engine:', error);
-      console.error('Error details:', {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-      });
       this.state = 'idle';
-      endTiming();
       throw error;
     }
   }
@@ -115,6 +93,7 @@ export class DhwaniAudioEngine implements IAudioEngine {
 
   private async initializePiano(): Promise<void> {
     this.pianoSynth = new PianoSynth(this.config.instruments.piano, this.masterGain);
+    await this.pianoSynth.initialize();
   }
 
   private async initializeBass(): Promise<void> {
@@ -123,6 +102,7 @@ export class DhwaniAudioEngine implements IAudioEngine {
 
   private async initializeSynth(): Promise<void> {
     this.synthSynth = new SynthSynth(this.config.instruments.piano, this.masterGain);
+    await this.synthSynth.initialize();
   }
 
   playNote(instrument: InstrumentType, note: string, velocity: number = 0.7): void {
@@ -130,11 +110,6 @@ export class DhwaniAudioEngine implements IAudioEngine {
       console.warn('Audio engine not initialized');
       return;
     }
-
-    // Mark audio activity for context management
-    audioManager.markActivity();
-
-    const endTiming = PerformanceMonitor.startTiming(`play_note_${instrument}`);
 
     console.log(`Playing ${instrument} note: ${note} with velocity: ${velocity}`);
     const adjustedVelocity = Math.max(0.1, Math.min(1.0, velocity));
@@ -159,8 +134,8 @@ export class DhwaniAudioEngine implements IAudioEngine {
       if (this.state === 'recording') {
         this.recordNote(note, adjustedVelocity);
       }
-    } finally {
-      endTiming();
+    } catch (error) {
+      console.error('Error playing note:', error);
     }
   }
 
@@ -214,49 +189,14 @@ export class DhwaniAudioEngine implements IAudioEngine {
       await this.initialize();
     }
 
-    const endTiming = PerformanceMonitor.startTiming('play_composition');
-    audioManager.markActivity();
-
     this.state = 'playing';
 
     try {
-      // For large compositions, use chunking
-      const totalNotes = composition.layers.reduce((sum, track) => sum + track.notes.length, 0);
-
-      if (totalNotes > 500) {
-        await this.playLargeComposition(composition);
-      } else {
-        // Play all tracks simultaneously for smaller compositions
-        const playPromises = composition.layers.map((track) => this.playTrack(track));
-        await Promise.all(playPromises);
-      }
+      // Play all tracks simultaneously
+      const playPromises = composition.layers.map((track) => this.playTrack(track));
+      await Promise.all(playPromises);
     } finally {
       this.state = 'idle';
-      endTiming();
-    }
-  }
-
-  private async playLargeComposition(composition: CompositionData): Promise<void> {
-    // Chunk the composition for better performance
-    const chunks = CompositionChunker.chunkComposition(composition);
-    const loadedChunks = new Map();
-
-    for (const chunk of chunks) {
-      // Load chunk on demand
-      const loadedChunk = await CompositionChunker.loadChunk(chunk.id, chunks, loadedChunks);
-
-      // Play chunk
-      const chunkComposition: CompositionData = {
-        id: `chunk_${chunk.id}`,
-        layers: loadedChunk.tracks,
-        metadata: composition.metadata,
-      };
-
-      const playPromises = chunkComposition.layers.map((track) => this.playTrack(track));
-      await Promise.all(playPromises);
-
-      // Small delay between chunks to prevent audio dropouts
-      await new Promise((resolve) => setTimeout(resolve, 10));
     }
   }
 
@@ -355,8 +295,6 @@ export class DhwaniAudioEngine implements IAudioEngine {
   }
 
   dispose(): void {
-    const endTiming = PerformanceMonitor.startTiming('audio_engine_dispose');
-
     try {
       // Clean up all Tone.js resources
       this.drumKit?.dispose();
@@ -370,18 +308,16 @@ export class DhwaniAudioEngine implements IAudioEngine {
 
       this.isInitialized = false;
       this.state = 'idle';
-    } finally {
-      endTiming();
+    } catch (error) {
+      console.error('Error disposing audio engine:', error);
     }
   }
 
   /**
-   * Get performance statistics
+   * Get basic engine state
    */
-  getPerformanceStats() {
+  getEngineState() {
     return {
-      audioContext: audioManager.getState(),
-      performance: PerformanceMonitor.getAllStats(),
       isInitialized: this.isInitialized,
       state: this.state,
     };

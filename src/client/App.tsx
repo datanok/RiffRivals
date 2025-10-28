@@ -5,18 +5,12 @@ import type {
   UIMode,
   InstrumentType,
   ChallengeScore,
-  ChallengeDifficulty,
   ChallengeType,
   DrumType,
 } from '../shared/index.js';
 import { DhwaniAudioEngine } from './audio/DhwaniAudioEngine.js';
 
 // Local type definitions for challenge system
-type ScoringWeights = {
-  timing: number;
-  accuracy: number;
-};
-
 type PianoNote = 'C4' | 'D4' | 'E4' | 'F4' | 'G4' | 'A4' | 'B4' | 'C5';
 type BassNote = 'E2' | 'A2' | 'D3' | 'G3';
 type SynthNote =
@@ -49,6 +43,13 @@ import { ChallengeResults } from './components/ChallengeResults.js';
 import { Leaderboard } from './components/Leaderboard.js';
 import { FallingNotesChallenge } from './components/FallingNotesChallenge.js';
 import { ErrorHandler, type DhwaniError } from './utils/errorHandling.js';
+import { playButtonClick } from './utils/audioFeedback.js';
+import { createDefaultChallenges } from './utils/improved_predefined_songs.js';
+
+// Initialize predefined challenges using the improved system
+const initializeChallenges = () => {
+  return createDefaultChallenges();
+};
 
 // Local difficulty calculation (temporary until shared utils are properly configured)
 const calculateChallengeMetadata = (
@@ -136,6 +137,7 @@ type AppState = {
   // Challenge system state
   availableChallenges: CompositionData[];
   selectedChallenge: CompositionData | null;
+  selectedLayerIndex: number; // Which instrument layer to play
   currentChallengeType: 'falling_notes' | 'replication';
   challengeScore: ChallengeScore | null;
   personalBest: ChallengeScore | null;
@@ -385,158 +387,11 @@ const PREDEFINED_SONGS = [
   },
 ];
 
-// Musical timing patterns for different song styles
-const getMusicalTiming = (songId: string, patternLength: number, totalDuration: number) => {
-  const baseInterval = totalDuration / patternLength;
-
-  switch (songId) {
-    case 'song1': // Twinkle Twinkle - Simple 4/4 time
-      return Array.from({ length: patternLength }, (_, i) => {
-        const beat = i % 4;
-        const measure = Math.floor(i / 4);
-        // Emphasize beats 1 and 3, shorter notes on 2 and 4
-        return (
-          measure * baseInterval * 4 +
-          (beat === 0
-            ? 0
-            : beat === 1
-              ? baseInterval * 0.8
-              : beat === 2
-                ? baseInterval * 2
-                : baseInterval * 2.8)
-        );
-      });
-
-    case 'song2': // Fur Elise - Classical timing with rubato
-      return Array.from({ length: patternLength }, (_, i) => {
-        const baseTime = i * baseInterval;
-        // Add slight variations for musical expression
-        const variation = Math.sin(i * 0.3) * baseInterval * 0.1;
-        return baseTime + variation;
-      });
-
-    case 'song3': // Smoke on the Water - Rock rhythm
-      return Array.from({ length: patternLength }, (_, i) => {
-        const beat = i % 4;
-        // Rock timing: emphasis on beats 1 and 3
-        return i * baseInterval + (beat === 1 || beat === 3 ? baseInterval * 0.1 : 0);
-      });
-
-    case 'song4': // Seven Nation Army - Driving bass rhythm
-      return Array.from({ length: patternLength }, (_, i) => {
-        // Strong downbeat emphasis
-        return i * baseInterval + (i % 2 === 0 ? 0 : baseInterval * 0.2);
-      });
-
-    case 'song5': // Canon in D - Baroque timing
-      return Array.from({ length: patternLength }, (_, i) => {
-        const beat = i % 4;
-        // Baroque style: even timing with slight emphasis on strong beats
-        return i * baseInterval + (beat === 0 ? 0 : baseInterval * 0.05);
-      });
-
-    case 'song6': // Mary Had a Little Lamb - Simple rhythm
-      return Array.from({ length: patternLength }, (_, i) => {
-        const beat = i % 4;
-        // Simple 4/4 timing
-        return i * baseInterval + (beat === 0 ? 0 : baseInterval * 0.1);
-      });
-
-    case 'song7': // Believer - Modern pop timing
-      return Array.from({ length: patternLength }, (_, i) => {
-        const beat = i % 4;
-        // Pop timing: slight syncopation
-        return i * baseInterval + (beat === 1 || beat === 3 ? baseInterval * 0.15 : 0);
-      });
-
-    case 'song8': // We Will Rock You - Stomp-clap rhythm
-      return Array.from({ length: patternLength }, (_, i) => {
-        const beat = i % 4;
-        // Stomp-clap pattern: strong beats 1 and 3
-        return i * baseInterval + (beat === 0 || beat === 2 ? 0 : baseInterval * 0.2);
-      });
-
-    case 'song9': // Hotel California - Guitar strumming pattern
-      return Array.from({ length: patternLength }, (_, i) => {
-        const beat = i % 4;
-        // Guitar strumming: downstrokes on beats 1 and 3, upstrokes on 2 and 4
-        return i * baseInterval + (beat === 0 || beat === 2 ? 0 : baseInterval * 0.1);
-      });
-
-    case 'song10': // Let It Be - Beatles ballad timing
-      return Array.from({ length: patternLength }, (_, i) => {
-        const beat = i % 4;
-        // Ballad timing: gentle emphasis on beat 1
-        return i * baseInterval + (beat === 0 ? 0 : baseInterval * 0.05);
-      });
-
-    default:
-      // Fallback to uniform timing
-      return Array.from({ length: patternLength }, (_, i) => i * baseInterval);
-  }
-};
-
-// Convert predefined songs to challenge compositions
-const createDefaultChallenges = (): CompositionData[] => {
-  return PREDEFINED_SONGS.map((song) => {
-    const musicalTiming = getMusicalTiming(song.id, song.pattern.length, song.duration);
-
-    // Create notes with musical timing
-    const notes = song.pattern.map((note, index) => ({
-      note,
-      velocity: 0.8,
-      startTime: musicalTiming[index] ?? index * (song.duration / song.pattern.length),
-      duration: musicalTiming[index + 1] ? musicalTiming[index + 1] - musicalTiming[index] : 1000, // Duration until next note
-    }));
-
-    const trackData: TrackData = {
-      id: `${song.id}_track`,
-      instrument: song.instrument,
-      notes,
-      tempo: 120,
-      duration: song.duration / 1000, // Convert to seconds
-      userId: 'system',
-      timestamp: Date.now(),
-    };
-
-    const challengeMetadata = calculateChallengeMetadata(
-      trackData,
-      'falling_notes',
-      song.difficulty
-    );
-
-    return {
-      id: song.id,
-      layers: [trackData],
-      metadata: {
-        title: song.name,
-        description: song.description,
-        createdAt: Date.now(),
-        collaborators: ['system'],
-        tags: [song.instrument, song.difficulty, 'default'],
-        challengeSettings: {
-          challengeType: 'falling_notes' as ChallengeType,
-          baseDifficulty: song.difficulty as ChallengeDifficulty,
-          calculatedDifficulty: challengeMetadata.calculatedDifficulty,
-          scoringWeights: challengeMetadata.scoringWeights,
-          allowedAttempts: 3,
-          timeLimit: Math.ceil(trackData.duration),
-          accuracyThreshold: 70,
-          leaderboard: [],
-        },
-      },
-    };
-  });
-};
-
 // FallingNotesMode component for the Guitar Hero style challenge
 const FallingNotesMode: React.FC = () => {
-  const [selectedInstrument, setSelectedInstrument] = useState<InstrumentType>('drums');
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [selectedSong, setSelectedSong] = useState<string | null>(null);
   const [isChallengeActive, setIsChallengeActive] = useState(false);
-  const [challengeScore, setChallengeScore] = useState(0);
-  const [challengeAccuracy, setChallengeAccuracy] = useState(100);
   const audioEngineRef = useRef<DhwaniAudioEngine | null>(null);
 
   // Initialize audio engine for challenges
@@ -544,10 +399,10 @@ const FallingNotesMode: React.FC = () => {
     const initializeAudio = async () => {
       try {
         audioEngineRef.current = new DhwaniAudioEngine();
-        await audioEngineRef.current.initialize();
-        console.log('Challenge audio engine initialized');
+        // Don't initialize immediately - wait for user interaction
+        console.log('Challenge audio engine created, will initialize on first interaction');
       } catch (error) {
-        console.error('Failed to initialize challenge audio engine:', error);
+        console.error('Failed to create challenge audio engine:', error);
       }
     };
 
@@ -560,22 +415,29 @@ const FallingNotesMode: React.FC = () => {
     };
   }, []);
 
-  const handleNoteHit = useCallback(
-    (note: string, velocity: number) => {
-      // Play the note using the audio engine
-      if (audioEngineRef.current) {
-        const selectedSongData = PREDEFINED_SONGS.find((song) => song.id === selectedSong);
-        const instrument = selectedSongData?.instrument || selectedInstrument;
-        audioEngineRef.current.playNote(instrument, note, velocity);
-      }
-      console.log('Note hit:', note, velocity);
-    },
-    [selectedSong, selectedInstrument]
-  );
+  const handleNoteHit = useCallback(async (note: string, velocity: number) => {
+    // Ensure audio engine is initialized and ready
+    if (audioEngineRef.current) {
+      try {
+        // Make sure audio engine is initialized
+        if (audioEngineRef.current.getState() === 'idle') {
+          console.log('FallingNotesMode: Initializing audio engine on first note hit');
+          await audioEngineRef.current.initialize();
+        }
 
-  const handleScoreUpdate = useCallback((score: number, accuracy: number) => {
-    setChallengeScore(score);
-    setChallengeAccuracy(accuracy);
+        console.log('FallingNotesMode: Playing note:', note, 'on drums');
+        audioEngineRef.current.playNote('drums', note, velocity);
+      } catch (error) {
+        console.error('FallingNotesMode: Error playing note:', error);
+      }
+    } else {
+      console.warn('FallingNotesMode: Audio engine not available');
+    }
+    console.log('Note hit:', note, velocity);
+  }, []);
+
+  const handleScoreUpdate = useCallback((_score: number, _accuracy: number) => {
+    // Score updates handled internally by FallingNotesChallenge
   }, []);
 
   const handleChallengeComplete = useCallback(() => {
@@ -588,14 +450,14 @@ const FallingNotesMode: React.FC = () => {
     return (
       <div className="max-w-4xl mx-auto p-6">
         <FallingNotesChallenge
-          instrument={selectedSongData?.instrument || selectedInstrument}
+          instrument="drums"
           onNoteHit={handleNoteHit}
           onScoreUpdate={handleScoreUpdate}
           difficulty={selectedSongData?.difficulty || difficulty}
           isActive={isChallengeActive}
           onComplete={handleChallengeComplete}
-          songPattern={selectedSongData?.pattern as string[]}
-          songDuration={selectedSongData?.duration}
+          songPattern={selectedSongData?.pattern as (DrumType | PianoNote | BassNote | SynthNote)[]}
+          audioEngine={audioEngineRef.current}
         />
       </div>
     );
@@ -620,13 +482,13 @@ const FallingNotesMode: React.FC = () => {
             textShadow: '3px 3px 0px #ff6b6b, 6px 6px 0px #4ecdc4',
           }}
         >
-          🎮 FALLING NOTES CHALLENGE
+          🥁 DRUM RHYTHM CHALLENGE
         </h2>
         <p
           className="text-purple-100 mb-8 text-center text-lg"
           style={{ fontFamily: "'Press Start 2P', monospace", fontSize: '10px' }}
         >
-          CHOOSE A SONG AND HIT THE NOTES AS THEY FALL! LIKE GUITAR HERO!
+          CHOOSE A SONG AND HIT THE DRUM NOTES AS THEY FALL! LIKE DRUM HERO!
         </p>
 
         {/* Song Selection */}
@@ -643,7 +505,6 @@ const FallingNotesMode: React.FC = () => {
                 key={song.id}
                 onClick={() => {
                   setSelectedSong(song.id);
-                  setSelectedInstrument(song.instrument);
                   setDifficulty(song.difficulty);
                 }}
                 className={`p-4 rounded-lg font-bold transition-all transform hover:scale-105 shadow-lg ${
@@ -662,87 +523,18 @@ const FallingNotesMode: React.FC = () => {
                 <div className="text-center">
                   <div className="text-lg mb-2">{song.name}</div>
                   <div className="text-xs opacity-80 mb-2">{song.description}</div>
-                  <div className="text-xs">
-                    {song.instrument === 'drums' && '🥁 DRUMS'}
-                    {song.instrument === 'piano' && '🎹 PIANO'}
-                    {song.instrument === 'bass' && '🎸 BASS'}
-                    {song.instrument === 'synth' && '🎺 SYNTH'}
-                    {' • '}
-                    {song.difficulty.toUpperCase()}
-                  </div>
+                  <div className="text-xs">🥁 DRUMS • {song.difficulty.toUpperCase()}</div>
                 </div>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Custom Challenge Option */}
-        <div className="mb-8">
-          <h3
-            className="text-xl font-bold text-white mb-4 text-center"
-            style={{ fontFamily: "'Press Start 2P', monospace", fontSize: '12px' }}
-          >
-            🎮 OR CREATE CUSTOM CHALLENGE
-          </h3>
-          <div className="flex justify-center gap-4 mb-4">
-            {(['drums', 'piano', 'bass', 'synth'] as InstrumentType[]).map((instrument) => (
-              <button
-                key={instrument}
-                onClick={() => {
-                  setSelectedSong(null);
-                  setSelectedInstrument(instrument);
-                }}
-                className={`px-4 py-2 rounded-lg font-bold transition-all transform hover:scale-105 shadow-lg ${
-                  selectedSong === null && selectedInstrument === instrument
-                    ? 'bg-gradient-to-r from-green-400 to-blue-500 text-white'
-                    : 'bg-gradient-to-r from-gray-600 to-gray-700 text-gray-200 hover:from-gray-500 hover:to-gray-600'
-                }`}
-                style={{
-                  fontFamily: "'Press Start 2P', monospace",
-                  fontSize: '8px',
-                  border: '2px solid #333',
-                  boxShadow: '4px 4px 0px #333',
-                  borderRadius: '0px',
-                }}
-              >
-                {instrument === 'drums' && '🥁'}
-                {instrument === 'piano' && '🎹'}
-                {instrument === 'bass' && '🎸'}
-                {instrument === 'synth' && '🎺'}
-              </button>
-            ))}
-          </div>
-          {selectedSong === null && (
-            <div className="flex justify-center gap-4">
-              {(['easy', 'medium', 'hard'] as const).map((diff) => (
-                <button
-                  key={diff}
-                  onClick={() => setDifficulty(diff)}
-                  className={`px-4 py-2 rounded-lg font-bold transition-all transform hover:scale-105 shadow-lg ${
-                    difficulty === diff
-                      ? 'bg-gradient-to-r from-green-400 to-blue-500 text-white'
-                      : 'bg-gradient-to-r from-gray-600 to-gray-700 text-gray-200 hover:from-gray-500 hover:to-gray-600'
-                  }`}
-                  style={{
-                    fontFamily: "'Press Start 2P', monospace",
-                    fontSize: '8px',
-                    border: '2px solid #333',
-                    boxShadow: '4px 4px 0px #333',
-                    borderRadius: '0px',
-                  }}
-                >
-                  {diff.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
         {/* Start Challenge Button */}
         <div className="text-center">
           <button
             onClick={() => setIsChallengeActive(true)}
-            disabled={!selectedSong && !selectedInstrument}
+            disabled={!selectedSong}
             className="px-8 py-4 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-xl font-bold hover:from-green-600 hover:to-blue-600 disabled:from-gray-500 disabled:to-gray-600 disabled:cursor-not-allowed transition-all transform hover:scale-105 shadow-xl text-lg"
             style={{
               fontFamily: "'Press Start 2P', monospace",
@@ -777,7 +569,7 @@ const FallingNotesMode: React.FC = () => {
             className="text-purple-100 text-sm space-y-1"
             style={{ fontFamily: "'Press Start 2P', monospace", fontSize: '8px' }}
           >
-            <li>• CHOOSE A SONG OR CREATE CUSTOM CHALLENGE</li>
+            <li>• CHOOSE A SONG TO PLAY ON DRUMS</li>
             <li>• NOTES WILL FALL FROM THE TOP OF THE SCREEN</li>
             <li>• HIT THE CORRESPONDING KEY WHEN THE NOTE REACHES THE RED LINE</li>
             <li>• USE KEYS A, S, D, F OR 1, 2, 3, 4 TO HIT NOTES</li>
@@ -1336,8 +1128,9 @@ export const App = () => {
     currentComposition: null,
     username: null,
     // Challenge system state
-    availableChallenges: createDefaultChallenges(),
+    availableChallenges: initializeChallenges(),
     selectedChallenge: null,
+    selectedLayerIndex: 0,
     currentChallengeType: 'falling_notes',
     challengeScore: null,
     personalBest: null,
@@ -1348,6 +1141,7 @@ export const App = () => {
   const [error, setError] = useState<DhwaniError | string | null>(null);
   const [isCompatible, setIsCompatible] = useState(true);
   const [audioInitialized, setAudioInitialized] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
   const challengeAudioEngineRef = useRef<DhwaniAudioEngine | null>(null);
 
   // Initialize challenge audio engine
@@ -1355,10 +1149,10 @@ export const App = () => {
     const initializeChallengeAudio = async () => {
       try {
         challengeAudioEngineRef.current = new DhwaniAudioEngine();
-        await challengeAudioEngineRef.current.initialize();
-        console.log('Challenge audio engine initialized');
+        // Don't initialize immediately - wait for user interaction
+        console.log('Main challenge audio engine created, will initialize on first use');
       } catch (error) {
-        console.error('Failed to initialize challenge audio engine:', error);
+        console.error('Failed to create main challenge audio engine:', error);
       }
     };
 
@@ -1595,13 +1389,6 @@ export const App = () => {
     }));
   }, []);
 
-  const handleShowLeaderboard = useCallback(() => {
-    setAppState((prev) => ({
-      ...prev,
-      mode: 'leaderboard',
-    }));
-  }, []);
-
   // Debug current app state
   console.log('App: Current state:', {
     mode: appState.mode,
@@ -1609,6 +1396,64 @@ export const App = () => {
     hasCurrentPostId: !!appState.currentPostId,
     hasCurrentComposition: !!appState.currentComposition,
   });
+
+  // Splash Screen Component
+  if (showSplash) {
+    return (
+      <div
+        className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center"
+        style={{ fontFamily: "'Press Start 2P', 'Courier New', monospace" }}
+      >
+        <div className="text-center p-8">
+          <h1
+            className="text-6xl font-bold text-white mb-8 drop-shadow-lg animate-pulse"
+            style={{ textShadow: '4px 4px 0px #ff6b6b, 8px 8px 0px #4ecdc4' }}
+          >
+            🎮 RiffRivals
+          </h1>
+          <p className="text-xl text-purple-200 mb-8" style={{ fontSize: '12px' }}>
+            ARCADE MUSIC BATTLE ARENA
+          </p>
+          <button
+            onClick={async () => {
+              // Initialize audio context on user interaction
+              try {
+                const AudioContextClass =
+                  window.AudioContext ||
+                  (window as unknown as { webkitAudioContext: typeof AudioContext })
+                    .webkitAudioContext;
+                if (AudioContextClass) {
+                  const tempContext = new AudioContextClass();
+                  if (tempContext.state === 'suspended') {
+                    await tempContext.resume();
+                  }
+                  await tempContext.close();
+                }
+                setAudioInitialized(true);
+                playButtonClick();
+              } catch (error) {
+                console.log('Failed to initialize audio context:', error);
+              }
+              setShowSplash(false);
+            }}
+            className="px-8 py-4 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-xl font-bold hover:from-green-600 hover:to-blue-600 transition-all transform hover:scale-105 shadow-xl text-lg"
+            style={{
+              fontFamily: "'Press Start 2P', monospace",
+              fontSize: '16px',
+              border: '4px solid #333',
+              boxShadow: '8px 8px 0px #333',
+              borderRadius: '0px',
+            }}
+          >
+            🚀 PLAY GAME
+          </button>
+          <p className="text-purple-300 mt-4 text-sm" style={{ fontSize: '8px' }}>
+            Click to start and enable audio
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <ErrorBoundary>
@@ -1660,7 +1505,10 @@ export const App = () => {
                       {/* Mode Navigation */}
                       <div className="flex gap-2">
                         <button
-                          onClick={() => handleModeChange('create')}
+                          onClick={() => {
+                            playButtonClick();
+                            handleModeChange('create');
+                          }}
                           className={`
                       px-4 py-2 text-sm rounded-lg font-bold transition-all transform hover:scale-105 shadow-lg
                       ${
@@ -1681,7 +1529,10 @@ export const App = () => {
                         </button>
 
                         <button
-                          onClick={() => handleModeChange('challenge_select')}
+                          onClick={() => {
+                            playButtonClick();
+                            handleModeChange('challenge_select');
+                          }}
                           className={`
                         px-4 py-2 text-sm rounded-lg font-bold transition-all transform hover:scale-105 shadow-lg
                         ${
@@ -1705,7 +1556,10 @@ export const App = () => {
 
                         {appState.currentPostId && (
                           <button
-                            onClick={() => handleModeChange('playback')}
+                            onClick={() => {
+                              playButtonClick();
+                              handleModeChange('playback');
+                            }}
                             className={`
                         px-4 py-2 text-sm rounded-lg font-bold transition-all transform hover:scale-105 shadow-lg
                         ${
@@ -1804,29 +1658,100 @@ export const App = () => {
                     'selectedChallenge:',
                     appState.selectedChallenge
                   )}
+                  {/* Layer/Instrument Selector */}
+                  {appState.selectedChallenge.layers.length > 1 && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: '10px',
+                        justifyContent: 'center',
+                        marginBottom: '20px',
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      {appState.selectedChallenge.layers.map((layer, index) => {
+                        const instrumentIcons = {
+                          drums: '🥁',
+                          piano: '🎹',
+                          bass: '🎸',
+                          synth: '🎛️',
+                        };
+                        return (
+                          <button
+                            key={index}
+                            onClick={() => {
+                              playButtonClick();
+                              setAppState((prev) => ({
+                                ...prev,
+                                selectedLayerIndex: index,
+                              }));
+                            }}
+                            style={{
+                              padding: '10px 20px',
+                              background:
+                                appState.selectedLayerIndex === index
+                                  ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                                  : '#2a2a3e',
+                              color: '#fff',
+                              border:
+                                appState.selectedLayerIndex === index
+                                  ? '3px solid #00ff88'
+                                  : '2px solid #444',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              fontFamily: "'Press Start 2P', monospace",
+                              fontSize: '10px',
+                              textTransform: 'uppercase',
+                              transition: 'all 0.2s',
+                            }}
+                          >
+                            {instrumentIcons[layer.instrument as keyof typeof instrumentIcons]}{' '}
+                            {layer.instrument}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                   <FallingNotesChallenge
-                    instrument={appState.selectedChallenge.layers[0]?.instrument || 'drums'}
-                    onNoteHit={(note, velocity) => {
+                    instrument={
+                      appState.selectedChallenge.layers[appState.selectedLayerIndex]?.instrument ||
+                      'drums'
+                    }
+                    onNoteHit={async (note, velocity) => {
                       // Play audio when note is hit
                       console.log('App: Playing note:', note, 'with velocity:', velocity);
                       console.log(
                         'App: Audio engine available:',
                         !!challengeAudioEngineRef.current
                       );
-                      console.log('App: Selected challenge:', appState.selectedChallenge);
+
                       if (
                         challengeAudioEngineRef.current &&
                         appState.selectedChallenge?.layers[0]
                       ) {
-                        const instrument = appState.selectedChallenge.layers[0].instrument;
-                        console.log('App: Playing note on instrument:', instrument);
-                        challengeAudioEngineRef.current.playNote(instrument, note, velocity);
+                        try {
+                          // Ensure audio engine is initialized (check the actual initialized state)
+                          const engineState = challengeAudioEngineRef.current.getEngineState();
+                          if (
+                            !engineState.isInitialized &&
+                            challengeAudioEngineRef.current.getState() !== 'loading'
+                          ) {
+                            console.log('App: Initializing audio engine on first note hit');
+                            await challengeAudioEngineRef.current.initialize();
+                          }
+
+                          const instrument = appState.selectedChallenge.layers[0].instrument;
+                          console.log('App: Playing note on instrument:', instrument);
+                          challengeAudioEngineRef.current.playNote(instrument, note, velocity);
+                        } catch (error) {
+                          console.error('App: Error playing note:', error);
+                        }
                       } else {
                         console.log('App: Audio engine not available or challenge not selected');
                       }
                     }}
-                    onScoreUpdate={(score, accuracy) => {
-                      // Handle score update
+                    onScoreUpdate={(_score, _accuracy) => {
+                      // Score updates handled internally
                     }}
                     difficulty="medium"
                     isActive={true}
@@ -1834,28 +1759,20 @@ export const App = () => {
                       // Challenge completed
                     }}
                     songPattern={
-                      appState.selectedChallenge.layers[0]?.notes.map((n) => n.note) as (
-                        | DrumType
-                        | PianoNote
-                        | BassNote
-                        | SynthNote
-                      )[]
-                    }
-                    songDuration={
-                      appState.selectedChallenge.layers[0]?.duration
-                        ? appState.selectedChallenge.layers[0].duration * 1000
-                        : 30000
+                      appState.selectedChallenge.layers[appState.selectedLayerIndex]?.notes.map(
+                        (n) => n.note
+                      ) as (DrumType | PianoNote | BassNote | SynthNote)[]
                     }
                     songNotes={(() => {
-                      const songNotes = appState.selectedChallenge.layers[0]?.notes?.map(
-                        (note) => ({
-                          note: note.note as DrumType | PianoNote | BassNote | SynthNote,
-                          startTime: note.startTime,
-                          duration: note.duration,
-                        })
-                      );
+                      const songNotes = appState.selectedChallenge.layers[
+                        appState.selectedLayerIndex
+                      ]?.notes?.map((note) => ({
+                        note: note.note as DrumType | PianoNote | BassNote | SynthNote,
+                        startTime: note.startTime,
+                        duration: note.duration,
+                      }));
                       console.log('App: SongNotes for falling notes:', songNotes);
-                      return songNotes;
+                      return songNotes || [];
                     })()}
                     challengeMode="challenge"
                     scoreWeights={
@@ -1872,37 +1789,89 @@ export const App = () => {
 
               {appState.mode === 'replication_challenge' &&
                 appState.selectedChallenge &&
-                appState.selectedChallenge.layers[0] && (
-                  <ReplicationChallenge
-                    targetTrack={appState.selectedChallenge.layers[0]}
-                    instrument={appState.selectedChallenge.layers[0].instrument}
-                    onNotePlay={(note, velocity) => {
-                      // Play audio when note is played
-                      if (
-                        challengeAudioEngineRef.current &&
-                        appState.selectedChallenge?.layers[0]
-                      ) {
-                        const instrument = appState.selectedChallenge.layers[0].instrument;
-                        challengeAudioEngineRef.current.playNote(instrument, note, velocity);
+                appState.selectedChallenge.layers[appState.selectedLayerIndex] && (
+                  <div>
+                    {/* Layer/Instrument Selector */}
+                    {appState.selectedChallenge.layers.length > 1 && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          gap: '10px',
+                          justifyContent: 'center',
+                          marginBottom: '20px',
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        {appState.selectedChallenge.layers.map((layer, index) => {
+                          const instrumentIcons = {
+                            drums: '🥁',
+                            piano: '🎹',
+                            bass: '🎸',
+                            synth: '🎛️',
+                          };
+                          return (
+                            <button
+                              key={index}
+                              onClick={() => {
+                                playButtonClick();
+                                setAppState((prev) => ({
+                                  ...prev,
+                                  selectedLayerIndex: index,
+                                }));
+                              }}
+                              style={{
+                                padding: '10px 20px',
+                                background:
+                                  appState.selectedLayerIndex === index
+                                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                                    : '#2a2a3e',
+                                color: '#fff',
+                                border:
+                                  appState.selectedLayerIndex === index
+                                    ? '3px solid #00ff88'
+                                    : '2px solid #444',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontFamily: "'Press Start 2P', monospace",
+                                fontSize: '10px',
+                                textTransform: 'uppercase',
+                                transition: 'all 0.2s',
+                              }}
+                            >
+                              {instrumentIcons[layer.instrument as keyof typeof instrumentIcons]}{' '}
+                              {layer.instrument}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <ReplicationChallenge
+                      targetTrack={appState.selectedChallenge.layers[appState.selectedLayerIndex]!}
+                      instrument={
+                        appState.selectedChallenge.layers[appState.selectedLayerIndex]!.instrument
                       }
-                    }}
-                    onScoreUpdate={(score, accuracy) => {
-                      // Handle score update
-                    }}
-                    difficulty="medium"
-                    isActive={true}
-                    onComplete={() => {
-                      // Challenge completed
-                    }}
-                    challengeMode="challenge"
-                    scoreWeights={
-                      appState.selectedChallenge.metadata.challengeSettings?.scoringWeights || {
-                        timing: 0.5,
-                        accuracy: 0.5,
+                      onNotePlay={(_note, _velocity) => {
+                        // Audio is handled internally in ReplicationChallenge
+                      }}
+                      onScoreUpdate={(_score, _accuracy) => {
+                        // Score updates handled internally
+                      }}
+                      difficulty="medium"
+                      isActive={true}
+                      onComplete={() => {
+                        // Challenge completed
+                      }}
+                      challengeMode="challenge"
+                      scoreWeights={
+                        appState.selectedChallenge.metadata.challengeSettings?.scoringWeights || {
+                          timing: 0.5,
+                          accuracy: 0.5,
+                        }
                       }
-                    }
-                    onChallengeComplete={handleChallengeComplete}
-                  />
+                      onChallengeComplete={handleChallengeComplete}
+                      audioEngine={challengeAudioEngineRef.current}
+                    />
+                  </div>
                 )}
 
               {appState.mode === 'challenge_results' && appState.challengeScore && (
@@ -1913,7 +1882,23 @@ export const App = () => {
                     // Handle share functionality
                   }}
                   onBackToMenu={handleChallengeBackToMenu}
-                  personalBest={appState.personalBest}
+                  personalBest={
+                    appState.personalBest || {
+                      userId: 'current_user',
+                      accuracy: 0,
+                      timing: 0,
+                      timingScore: 0,
+                      accuracyScore: 0,
+                      combinedScore: 0,
+                      perfectHits: 0,
+                      greatHits: 0,
+                      goodHits: 0,
+                      missedNotes: 0,
+                      completedAt: Date.now(),
+                      originalTrackId: '',
+                      challengeType: 'falling_notes',
+                    }
+                  }
                   leaderboardPosition={1} // This would be calculated from leaderboard
                 />
               )}
@@ -1922,7 +1907,7 @@ export const App = () => {
                 <Leaderboard
                   scores={appState.leaderboardScores}
                   currentUserId={appState.username || 'current_user'}
-                  onScoreClick={(score) => {
+                  onScoreClick={(_score) => {
                     // Handle score click
                   }}
                 />
