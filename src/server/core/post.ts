@@ -11,11 +11,11 @@ export const createPost = async () => {
   return await reddit.submitCustomPost({
     splash: {
       // Splash Screen Configuration for Dhwani
-      appDisplayName: 'Riff',
+      appDisplayName: 'RiffRivals',
       backgroundUri: 'splash.png',
       buttonLabel: 'Start Jamming',
       description: 'Create musical riffs and collaborate with the Reddit community',
-      heading: `Welcome to Riff${username ? `, u/${username}` : ''}!`,
+      heading: `Welcome to RiffRivals! ${username ? `, u/${username}` : ''}!`,
       appIconUri: 'default-icon.png',
     },
     postData: {
@@ -25,9 +25,9 @@ export const createPost = async () => {
       createdAt: Date.now(),
     },
     subredditName: subredditName,
-    title: '🎵 Dhwani - Collaborative Music Creation',
+    title: 'RiffRivals - Collaborative Music Creation',
     textFallback: {
-      text: '🎵 Welcome to Dhwani! Create musical riffs and collaborate with the Reddit community. Click to start jamming!',
+      text: 'Welcome to RiffRivals! Create musical riffs and collaborate with the Reddit community. Click to start jamming!',
     },
   });
 };
