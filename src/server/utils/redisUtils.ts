@@ -118,19 +118,123 @@ export async function getJamReply(commentId: string): Promise<CompositionData | 
 }
 
 /**
- * Store challenge score
+ * Store challenge score with analytics
  */
 export async function storeChallengeScore(
   postId: string,
   userId: string,
-  score: ChallengeScore
+  score: ChallengeScore,
+  shareOptions?: {
+    shareFullScore: boolean;
+    shareAccuracy: boolean;
+    shareTiming: boolean;
+    shareCompletion: boolean;
+    sharePersonalBest: boolean;
+    makePublicComment: boolean;
+  }
 ): Promise<void> {
-  const key = `challenge:${postId}:${userId}`;
-  await redis.set(key, JSON.stringify(score));
+  const timestamp = Date.now();
 
-  // Also add to leaderboard
+  // Store the full score privately
+  const privateKey = `challenge:${postId}:${userId}:private`;
+  const privateData = {
+    ...score,
+    shareOptions,
+    submittedAt: timestamp,
+  };
+  await redis.set(privateKey, JSON.stringify(privateData));
+
+  // Store public score based on share options
+  if (shareOptions?.makePublicComment) {
+    const publicKey = `challenge:${postId}:${userId}:public`;
+    const publicData: any = {
+      userId,
+      submittedAt: timestamp,
+    };
+
+    if (shareOptions.shareFullScore) {
+      publicData.fullScore = score;
+    } else {
+      if (shareOptions.shareAccuracy) publicData.accuracy = score.accuracy;
+      if (shareOptions.shareTiming) publicData.timing = score.timing;
+      if (shareOptions.shareCompletion) publicData.completed = true;
+    }
+
+    await redis.set(publicKey, JSON.stringify(publicData));
+  }
+
+  // Update leaderboard (always store for ranking, but mark privacy)
   const leaderboardKey = `leaderboard:${postId}`;
-  await redis.zAdd(leaderboardKey, { member: userId, score: score.accuracy });
+  await redis.zAdd(leaderboardKey, {
+    member: `${userId}:${shareOptions?.makePublicComment ? 'public' : 'private'}`,
+    score: score.accuracy,
+  });
+
+  // Update challenge analytics
+  await updateChallengeAnalytics(postId, score, shareOptions?.shareCompletion !== false);
+}
+
+/**
+ * Update challenge analytics
+ */
+async function updateChallengeAnalytics(
+  postId: string,
+  score: ChallengeScore,
+  countCompletion: boolean = true
+): Promise<void> {
+  const analyticsKey = `analytics:${postId}`;
+
+  // Get existing analytics or create new
+  const existingData = await redis.get(analyticsKey);
+  let analytics = existingData
+    ? JSON.parse(existingData)
+    : {
+        totalAttempts: 0,
+        totalCompletions: 0,
+        averageAccuracy: 0,
+        averageTiming: 0,
+        highestScore: 0,
+        scoreDistribution: { S: 0, A: 0, B: 0, C: 0, D: 0 },
+        lastUpdated: Date.now(),
+      };
+
+  // Update analytics
+  analytics.totalAttempts += 1;
+  if (countCompletion) {
+    analytics.totalCompletions += 1;
+  }
+
+  // Update averages (running average)
+  const totalScores = analytics.totalAttempts;
+  analytics.averageAccuracy =
+    (analytics.averageAccuracy * (totalScores - 1) + score.accuracy) / totalScores;
+  analytics.averageTiming =
+    (analytics.averageTiming * (totalScores - 1) + score.timing) / totalScores;
+
+  // Update highest score
+  if (score.accuracy > analytics.highestScore) {
+    analytics.highestScore = score.accuracy;
+  }
+
+  // Update score distribution
+  const grade = getScoreGrade(score.accuracy);
+  analytics.scoreDistribution[grade] = (analytics.scoreDistribution[grade] || 0) + 1;
+
+  analytics.lastUpdated = Date.now();
+
+  // Store updated analytics
+  await redis.set(analyticsKey, JSON.stringify(analytics));
+}
+
+/**
+ * Get score grade
+ */
+function getScoreGrade(accuracy: number): 'S' | 'A' | 'B' | 'C' | 'D' {
+  if (accuracy >= 95) return 'S';
+  if (accuracy >= 80) return 'A';
+  if (accuracy >= 65) return 'B';
+  if (accuracy >= 50) return 'C';
+  return 'D';
 }
 
 /**
@@ -185,6 +289,54 @@ export async function getLeaderboard(
   }
 
   return leaderboard;
+}
+
+/**
+ * Get challenge analytics
+ */
+export async function getChallengeAnalytics(postId: string): Promise<{
+  totalAttempts: number;
+  totalCompletions: number;
+  completionRate: number;
+  averageAccuracy: number;
+  averageTiming: number;
+  highestScore: number;
+  scoreDistribution: Record<string, number>;
+  lastUpdated: number;
+} | null> {
+  const analyticsKey = `analytics:${postId}`;
+  const data = await redis.get(analyticsKey);
+
+  if (!data) {
+    return null;
+  }
+
+  const analytics = JSON.parse(data);
+  return {
+    ...analytics,
+    completionRate:
+      analytics.totalAttempts > 0
+        ? (analytics.totalCompletions / analytics.totalAttempts) * 100
+        : 0,
+  };
+}
+
+/**
+ * Get user's personal best for a challenge
+ */
+export async function getUserPersonalBest(
+  postId: string,
+  userId: string
+): Promise<ChallengeScore | null> {
+  const privateKey = `challenge:${postId}:${userId}:private`;
+  const data = await redis.get(privateKey);
+
+  if (!data) {
+    return null;
+  }
+
+  const scoreData = JSON.parse(data);
+  return scoreData as ChallengeScore;
 }
 
 /**

@@ -268,9 +268,8 @@ export function requireClearance(
   message: string;
 } {
   const MIN_ACCURACY = 70; // Minimum 70% accuracy to clear
-  const MIN_TIMING = 70; // Minimum 70% timing to clear
 
-  if (playScore.accuracy >= MIN_ACCURACY && playScore.timing >= MIN_TIMING) {
+  if (playScore.accuracy >= MIN_ACCURACY) {
     return {
       cleared: true,
       message: 'Chart cleared! You can now publish it.',
@@ -279,6 +278,6 @@ export function requireClearance(
 
   return {
     cleared: false,
-    message: `You must clear your own chart before publishing. Required: ${MIN_ACCURACY}% accuracy and ${MIN_TIMING}% timing. Your score: ${playScore.accuracy.toFixed(1)}% accuracy, ${playScore.timing.toFixed(1)}% timing.`,
+    message: `You must clear your own chart before publishing. Required: ${MIN_ACCURACY}% accuracy. Your score: ${playScore.accuracy.toFixed(1)}% accuracy.`,
   };
 }

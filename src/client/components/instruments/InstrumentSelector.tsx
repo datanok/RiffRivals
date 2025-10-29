@@ -24,29 +24,33 @@ type InstrumentConfig = {
   icon: string;
   description: string;
   color: string;
+  glowColor: string;
 };
 
 const INSTRUMENTS: InstrumentConfig[] = [
   {
     type: 'drums',
-    name: '🥁 BEAT BLASTER',
+    name: 'BEAT BLASTER',
     icon: '🥁',
-    description: 'DROP SICK BEATS AND CRUSH RHYTHMS',
+    description: 'Drop sick beats',
     color: '#ff6b6b',
+    glowColor: 'rgba(255, 107, 107, 0.4)',
   },
   {
     type: 'piano',
-    name: '🎹 MELODY MASTER',
+    name: 'MELODY MASTER',
     icon: '🎹',
-    description: 'CREATE EPIC MELODIES AND HARMONIES',
+    description: 'Epic melodies',
     color: '#4ecdc4',
+    glowColor: 'rgba(78, 205, 196, 0.4)',
   },
   {
     type: 'synth',
-    name: '🎺 SYNTH MASTER',
+    name: 'SYNTH MASTER',
     icon: '🎺',
-    description: 'CRAFT ELECTRONIC SOUNDS AND SYNTHESIS',
-    color: '#5f27cd',
+    description: 'Electronic sounds',
+    color: '#a29bfe',
+    glowColor: 'rgba(162, 155, 254, 0.4)',
   },
 ];
 
@@ -73,7 +77,6 @@ export const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
       setAudioInitializing(true);
       console.log('Starting audio initialization...');
 
-      // Check browser compatibility first
       const compatibility = BrowserCompatibility.checkCompatibility();
       console.log('Browser compatibility check:', compatibility);
 
@@ -81,7 +84,6 @@ export const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
         throw new Error(`Browser not supported: ${compatibility.missingFeatures.join(', ')}`);
       }
 
-      // Check Web Audio API availability
       if (!window.AudioContext && !(window as any).webkitAudioContext) {
         throw new Error('Web Audio API not available');
       }
@@ -95,18 +97,10 @@ export const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
       console.log('Audio engine initialized successfully');
       setAudioInitialized(true);
 
-      // Test audio playback
       console.log('Testing audio playback...');
       audioEngineRef.current.playNote('drums', 'kick', 0.5);
     } catch (error) {
       console.error('Failed to initialize audio engine:', error);
-      console.error('Error details:', {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-      });
-
-      // Show more detailed error message
       const errorMessage = error.message || 'Unknown error occurred';
       alert(
         `Audio initialization failed: ${errorMessage}\n\nPlease check your browser permissions and try again.`
@@ -116,13 +110,9 @@ export const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
     }
   };
 
-  // Auto-initialize audio engine on mount (with user interaction)
   useEffect(() => {
-    // Try to initialize audio engine automatically
-    // This will work if the user has already interacted with the page
     const autoInitialize = async () => {
       try {
-        // Check if we can initialize without user interaction
         if (window.AudioContext || (window as any).webkitAudioContext) {
           console.log('Attempting automatic audio initialization...');
           await initializeAudio();
@@ -132,11 +122,9 @@ export const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
           'Automatic audio initialization failed, user interaction required:',
           error.message
         );
-        // This is expected - we'll show the button for user interaction
       }
     };
 
-    // Small delay to ensure component is fully mounted
     const timeoutId = setTimeout(autoInitialize, 100);
 
     return () => {
@@ -147,7 +135,6 @@ export const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
     };
   }, []);
 
-  // Update audio engine's current instrument when selection changes
   useEffect(() => {
     if (audioEngineRef.current) {
       audioEngineRef.current.setCurrentInstrument(selectedInstrument);
@@ -156,10 +143,7 @@ export const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
 
   const handleInstrumentChange = async (instrument: InstrumentType) => {
     if (instrument === selectedInstrument) return;
-
     setIsTransitioning(true);
-
-    // Small delay for smooth transition effect
     setTimeout(() => {
       setSelectedInstrument(instrument);
       setIsTransitioning(false);
@@ -167,61 +151,24 @@ export const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
   };
 
   const handleDrumPlay = (drum: DrumType, velocity: number) => {
-    // Play audio if engine is ready
     if (audioEngineRef.current && audioInitialized) {
       audioEngineRef.current.playNote('drums', drum, velocity);
     }
-    // Also call the callback for recording/tracking
     onNotePlay('drums', drum, velocity);
   };
 
   const handlePianoPlay = (note: string, velocity: number) => {
-    // Play audio if engine is ready
     if (audioEngineRef.current && audioInitialized) {
       audioEngineRef.current.playNote('piano', note, velocity);
     }
-    // Also call the callback for recording/tracking
     onNotePlay('piano', note, velocity);
   };
 
   const handleSynthPlay = (note: string, velocity: number, waveform: WaveformType) => {
-    // Play audio if engine is ready
     if (audioEngineRef.current && audioInitialized) {
       audioEngineRef.current.playNote('synth', note, velocity);
     }
-    // Also call the callback for recording/tracking
     onNotePlay('synth', note, velocity);
-  };
-
-  const getInstrumentButtonStyle = (instrument: InstrumentConfig) => {
-    const isSelected = instrument.type === selectedInstrument;
-
-    return {
-      padding: '16px 20px',
-      margin: '6px',
-      borderRadius: '0px',
-      border: `4px solid ${isSelected ? instrument.color : '#666'}`,
-      background: isSelected
-        ? `linear-gradient(135deg, ${instrument.color}, ${instrument.color}dd)`
-        : 'linear-gradient(135deg, #444, #333)',
-      color: isSelected ? 'white' : '#ccc',
-      cursor: 'pointer',
-      userSelect: 'none' as const,
-      transition: 'all 0.3s ease',
-      display: 'flex',
-      flexDirection: 'column' as const,
-      alignItems: 'center',
-      gap: '6px',
-      minWidth: '120px',
-      fontSize: '12px',
-      fontWeight: 'bold',
-      fontFamily: "'Press Start 2P', monospace",
-      boxShadow: isSelected
-        ? `6px 6px 0px #333, 0 8px 25px ${instrument.color}60`
-        : '4px 4px 0px #333, 0 4px 15px rgba(0,0,0,0.4)',
-      transform: isSelected ? 'scale(1.05) translateY(-2px)' : 'scale(1)',
-      textShadow: isSelected ? '2px 2px 0px #333' : '1px 1px 0px #333',
-    };
   };
 
   const renderCurrentInstrument = () => {
@@ -232,12 +179,14 @@ export const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-            height: '200px',
-            color: 'white',
-            fontSize: '16px',
+            height: 'clamp(150px, 30vh, 200px)',
+            color: '#00d4ff',
+            fontSize: 'clamp(10px, 2vw, 14px)',
+            fontFamily: "'Press Start 2P', monospace",
+            textShadow: '0 0 10px #00d4ff',
           }}
         >
-          Switching instruments...
+          ▸▸▸ SWITCHING ◂◂◂
         </div>
       );
     }
@@ -277,188 +226,286 @@ export const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
   return (
     <div
       style={{
-        padding: '24px',
-        background: 'linear-gradient(135deg, #1a1a1a, #2a2a2a)',
-        borderRadius: '0px',
+        padding: 'clamp(12px, 2vw, 24px)',
+        background: 'linear-gradient(135deg, #0a0a1a 0%, #1a1a3e 100%)',
         width: '100%',
-        minHeight: '450px',
-        border: '4px solid #444',
-        boxShadow: '6px 6px 0px #333, 0 10px 30px rgba(0,0,0,0.5)',
+        minHeight: 'clamp(400px, 80vh, 600px)',
+        border: '4px solid #00d4ff',
+        boxShadow: '0 0 20px rgba(0, 212, 255, 0.3), inset 0 0 20px rgba(0, 212, 255, 0.05)',
         fontFamily: "'Press Start 2P', monospace",
+        position: 'relative',
+        overflow: 'hidden',
       }}
     >
-      {/* Audio Status */}
-      {!audioInitialized && (
-        <div
-          style={{
-            textAlign: 'center',
-            marginBottom: '20px',
-            padding: '20px',
-            background: 'linear-gradient(135deg, #2a2a2a, #1a1a1a)',
-            borderRadius: '16px',
-            border: '2px solid #ffa500',
-            boxShadow: '0 8px 20px rgba(255, 165, 0, 0.3)',
-          }}
-        >
+      {/* Retro grid background */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundImage: `
+          linear-gradient(0deg, transparent 24%, rgba(0, 212, 255, 0.03) 25%, rgba(0, 212, 255, 0.03) 26%, transparent 27%, transparent 74%, rgba(0, 212, 255, 0.03) 75%, rgba(0, 212, 255, 0.03) 76%, transparent 77%, transparent),
+          linear-gradient(90deg, transparent 24%, rgba(0, 212, 255, 0.03) 25%, rgba(0, 212, 255, 0.03) 26%, transparent 27%, transparent 74%, rgba(0, 212, 255, 0.03) 75%, rgba(0, 212, 255, 0.03) 76%, transparent 77%, transparent)
+        `,
+          backgroundSize: '40px 40px',
+          opacity: 0.3,
+          pointerEvents: 'none',
+        }}
+      />
+
+      {/* Corner decorations */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '-4px',
+          left: '-4px',
+          width: '12px',
+          height: '12px',
+          background: '#00d4ff',
+          boxShadow: '0 0 8px #00d4ff',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          top: '-4px',
+          right: '-4px',
+          width: '12px',
+          height: '12px',
+          background: '#00d4ff',
+          boxShadow: '0 0 8px #00d4ff',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          bottom: '-4px',
+          left: '-4px',
+          width: '12px',
+          height: '12px',
+          background: '#00d4ff',
+          boxShadow: '0 0 8px #00d4ff',
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          bottom: '-4px',
+          right: '-4px',
+          width: '12px',
+          height: '12px',
+          background: '#00d4ff',
+          boxShadow: '0 0 8px #00d4ff',
+        }}
+      />
+
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        {/* Audio Status */}
+        {!audioInitialized && (
           <div
             style={{
-              color: '#ffa500',
-              fontSize: '16px',
-              marginBottom: '12px',
-              fontWeight: 'bold',
-              fontFamily: "'Press Start 2P', monospace",
-              textShadow: '2px 2px 0px #333',
+              textAlign: 'center',
+              marginBottom: 'clamp(12px, 2vh, 20px)',
+              padding: 'clamp(12px, 2vw, 20px)',
+              background: 'linear-gradient(135deg, #1a1a3e 0%, #0f0f2e 100%)',
+              border: '3px solid #ffa500',
+              boxShadow: '0 0 15px rgba(255, 165, 0, 0.3)',
+              position: 'relative',
             }}
           >
-            🔊 AUDIO ENGINE READY TO LAUNCH!
-          </div>
-          <p
-            style={{
-              color: '#ccc',
-              fontSize: '10px',
-              marginBottom: '16px',
-              lineHeight: '1.4',
-              fontFamily: "'Press Start 2P', monospace",
-            }}
-          >
-            CLICK BELOW TO POWER UP THE AUDIO ENGINE AND START YOUR MUSICAL BATTLE!
-          </p>
-          <button
-            onClick={() => {
-              console.log('POWER UP AUDIO ENGINE button clicked!');
-              initializeAudio();
-            }}
-            disabled={audioInitializing || audioInitialized}
-            style={{
-              padding: '16px 32px',
-              background: audioInitialized
-                ? 'linear-gradient(135deg, #00ff00, #00cc00)'
-                : audioInitializing
-                  ? 'linear-gradient(135deg, #ffff00, #ffcc00)'
-                  : 'linear-gradient(135deg, #4ecdc4, #45b7d1)',
-              color: 'white',
-              border: '4px solid #333',
-              borderRadius: '0px',
-              fontSize: '12px',
-              fontWeight: 'bold',
-              fontFamily: "'Press Start 2P', monospace",
-              cursor: audioInitializing || audioInitialized ? 'not-allowed' : 'pointer',
-              transition: 'all 0.3s ease',
-              boxShadow: '6px 6px 0px #333',
-              textShadow: '2px 2px 0px #333',
-              opacity: audioInitializing || audioInitialized ? 0.7 : 1,
-            }}
-            onMouseOver={(e) => {
-              if (!audioInitializing && !audioInitialized) {
-                e.currentTarget.style.background = 'linear-gradient(135deg, #45b7d1, #4ecdc4)';
-                e.currentTarget.style.transform = 'scale(1.05)';
-              }
-            }}
-            onMouseOut={(e) => {
-              if (!audioInitializing && !audioInitialized) {
-                e.currentTarget.style.background = 'linear-gradient(135deg, #4ecdc4, #45b7d1)';
-                e.currentTarget.style.transform = 'scale(1)';
-              }
-            }}
-          >
-            {audioInitialized
-              ? '✅ AUDIO ENGINE READY!'
-              : audioInitializing
-                ? '⏳ INITIALIZING...'
-                : '🎵 POWER UP AUDIO ENGINE'}
-          </button>
-        </div>
-      )}
+            {/* Scanlines */}
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background:
+                  'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 212, 255, 0.03) 2px, rgba(0, 212, 255, 0.03) 4px)',
+                pointerEvents: 'none',
+              }}
+            />
 
-      {/* Instrument Selection */}
-      <div style={{ marginBottom: '28px' }}>
-        <div
-          style={{
-            textAlign: 'center',
-            color: 'white',
-            fontSize: '18px',
-            fontWeight: 'bold',
-            marginBottom: '20px',
-            fontFamily: "'Press Start 2P', monospace",
-            textShadow: '3px 3px 0px #ff6b6b',
-          }}
-        >
-          🎮 CHOOSE YOUR WEAPON {audioInitialized && '🔊'}
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            flexWrap: 'wrap',
-            gap: '12px',
-            padding: '20px',
-            background: 'linear-gradient(135deg, #2a2a2a, #1a1a1a)',
-            borderRadius: '16px',
-            border: '2px solid #444',
-            boxShadow: '0 8px 20px rgba(0,0,0,0.4)',
-          }}
-        >
-          {INSTRUMENTS.map((instrument) => (
-            <button
-              key={instrument.type}
-              style={getInstrumentButtonStyle(instrument)}
-              onClick={() => handleInstrumentChange(instrument.type)}
-              disabled={isTransitioning}
+            <div
+              style={{
+                color: '#ffa500',
+                fontSize: 'clamp(10px, 2vw, 14px)',
+                marginBottom: 'clamp(8px, 1.5vh, 12px)',
+                textShadow: '0 0 10px #ffa500',
+                position: 'relative',
+              }}
             >
-              <span style={{ fontSize: '24px' }}>{instrument.icon}</span>
-              <span>{instrument.name}</span>
-              <span
-                style={{
-                  fontSize: '11px',
-                  opacity: 0.8,
-                  fontWeight: 'normal',
-                }}
-              >
-                {instrument.description}
-              </span>
+              🔊 AUDIO ENGINE READY
+            </div>
+            <p
+              style={{
+                color: '#ccc',
+                fontSize: 'clamp(7px, 1.5vw, 9px)',
+                marginBottom: 'clamp(10px, 2vh, 16px)',
+                lineHeight: '1.6',
+                position: 'relative',
+              }}
+            >
+              CLICK TO POWER UP AND START!
+            </p>
+            <button
+              onClick={initializeAudio}
+              disabled={audioInitializing || audioInitialized}
+              style={{
+                padding: 'clamp(12px, 2vw, 16px) clamp(20px, 4vw, 32px)',
+                background: audioInitialized
+                  ? '#00ff00'
+                  : audioInitializing
+                    ? '#ffff00'
+                    : '#4ecdc4',
+                color: '#000',
+                border: '3px solid #000',
+                fontSize: 'clamp(8px, 1.8vw, 11px)',
+                fontWeight: 'bold',
+                fontFamily: "'Press Start 2P', monospace",
+                cursor: audioInitializing || audioInitialized ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: '4px 4px 0px #000',
+                opacity: audioInitializing || audioInitialized ? 0.7 : 1,
+                position: 'relative',
+              }}
+            >
+              {audioInitialized ? '✅ READY!' : audioInitializing ? '⏳ INIT...' : '🎵 POWER UP'}
             </button>
-          ))}
-        </div>
-      </div>
+          </div>
+        )}
 
-      {/* Current Instrument Interface */}
-      <div
-        style={{
-          minHeight: '300px',
-          opacity: isTransitioning || !audioInitialized ? 0.5 : 1,
-          transition: 'opacity 0.15s ease',
-          pointerEvents: !audioInitialized ? 'none' : 'auto',
-        }}
-      >
-        {renderCurrentInstrument()}
-      </div>
-
-      {/* Status Information */}
-      <div
-        style={{
-          marginTop: '20px',
-          textAlign: 'center',
-          color: '#aaa',
-          fontSize: '10px',
-          fontWeight: 'bold',
-          fontFamily: "'Press Start 2P', monospace",
-          textShadow: '1px 1px 0px #333',
-        }}
-      >
-        🎯 ACTIVE: {INSTRUMENTS.find((i) => i.type === selectedInstrument)?.name}
-        {isRecording && (
-          <span
+        {/* Instrument Selection */}
+        <div style={{ marginBottom: 'clamp(16px, 3vh, 28px)' }}>
+          <div
             style={{
-              marginLeft: '20px',
-              color: '#ff6b6b',
-              fontWeight: 'bold',
-              animation: 'pulse 1s infinite',
+              textAlign: 'center',
+              color: '#00d4ff',
+              fontSize: 'clamp(10px, 2vw, 16px)',
+              marginBottom: 'clamp(12px, 2vh, 20px)',
+              textShadow: '0 0 10px #00d4ff',
+              letterSpacing: '2px',
             }}
           >
-            🔴 LIVE RECORDING
-          </span>
-        )}
+            {audioInitialized ? '🔊 ' : ''}CHOOSE YOUR WEAPON
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+              gap: 'clamp(8px, 2vw, 12px)',
+              padding: 'clamp(12px, 2vw, 20px)',
+              background: 'linear-gradient(135deg, #1a1a3e 0%, #0f0f2e 100%)',
+              border: '2px solid #444',
+              boxShadow: '0 0 10px rgba(0, 0, 0, 0.5)',
+            }}
+          >
+            {INSTRUMENTS.map((instrument) => {
+              const isSelected = instrument.type === selectedInstrument;
+              return (
+                <button
+                  key={instrument.type}
+                  style={{
+                    padding: 'clamp(12px, 2vw, 16px)',
+                    border: `3px solid ${instrument.color}`,
+                    background: isSelected
+                      ? `linear-gradient(135deg, ${instrument.color} 0%, ${instrument.color}dd 100%)`
+                      : 'linear-gradient(135deg, #1a1a3e 0%, #0f0f2e 100%)',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 'clamp(4px, 1vh, 6px)',
+                    fontSize: 'clamp(8px, 1.6vw, 11px)',
+                    fontFamily: "'Press Start 2P', monospace",
+                    boxShadow: isSelected
+                      ? `0 4px 0 #000, 0 0 15px ${instrument.glowColor}`
+                      : '0 2px 0 #000',
+                    transform: isSelected ? 'translateY(-2px)' : 'translateY(0)',
+                    position: 'relative',
+                    overflow: 'hidden',
+                  }}
+                  onClick={() => handleInstrumentChange(instrument.type)}
+                  disabled={isTransitioning}
+                >
+                  {/* Scanlines */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      background:
+                        'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255, 255, 255, 0.02) 2px, rgba(255, 255, 255, 0.02) 4px)',
+                      pointerEvents: 'none',
+                    }}
+                  />
+
+                  <span
+                    style={{
+                      fontSize: 'clamp(20px, 4vw, 28px)',
+                      filter: isSelected ? `drop-shadow(0 0 8px ${instrument.color})` : 'none',
+                      position: 'relative',
+                    }}
+                  >
+                    {instrument.icon}
+                  </span>
+                  <span
+                    style={{
+                      textShadow: isSelected ? `0 0 8px ${instrument.color}` : 'none',
+                      position: 'relative',
+                    }}
+                  >
+                    {instrument.name}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 'clamp(6px, 1.2vw, 8px)',
+                      opacity: 0.8,
+                      position: 'relative',
+                    }}
+                  >
+                    {instrument.description}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Current Instrument Interface */}
+        <div
+          style={{
+            minHeight: 'clamp(200px, 40vh, 300px)',
+            opacity: isTransitioning || !audioInitialized ? 0.5 : 1,
+            transition: 'opacity 0.15s ease',
+            pointerEvents: !audioInitialized ? 'none' : 'auto',
+          }}
+        >
+          {renderCurrentInstrument()}
+        </div>
+
+        {/* Status Information */}
+        <div
+          style={{
+            marginTop: 'clamp(12px, 2vh, 20px)',
+            textAlign: 'center',
+            color: '#00d4ff',
+            fontSize: 'clamp(7px, 1.5vw, 9px)',
+            textShadow: '0 0 5px #00d4ff',
+          }}
+        >
+          ▸ {INSTRUMENTS.find((i) => i.type === selectedInstrument)?.name}
+          {isRecording && (
+            <span
+              style={{
+                marginLeft: 'clamp(8px, 2vw, 20px)',
+                color: '#ff6b6b',
+                textShadow: '0 0 5px #ff6b6b',
+              }}
+            >
+              🔴 LIVE
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

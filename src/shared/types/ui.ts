@@ -10,7 +10,9 @@ export type UIMode =
   | 'challenge_select'
   | 'challenge_results'
   | 'falling_notes'
-  | 'replication_challenge';
+  | 'replication_challenge'
+  | 'jam_session'
+  | 'jam_create';
 
 export type DrumKitProps = {
   onNotePlay: (drum: DrumType, velocity: number) => void;

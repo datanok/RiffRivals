@@ -8,11 +8,17 @@ import { InstrumentSelector } from './instruments/InstrumentSelector.js';
 interface SimplifiedCreateModeProps {
   onTrackCreate: (track: TrackData, title: string) => void;
   onCancel?: () => void;
+  title?: string;
+  description?: string;
+  buttonText?: string;
 }
 
 export const SimplifiedCreateMode: React.FC<SimplifiedCreateModeProps> = ({
   onTrackCreate,
   onCancel,
+  title: customTitle,
+  description: customDescription,
+  buttonText: customButtonText,
 }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [currentInstrument, setCurrentInstrument] = useState<InstrumentType>('drums');

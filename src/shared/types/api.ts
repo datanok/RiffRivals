@@ -63,6 +63,7 @@ export type GetCompositionResponse = {
   composition: CompositionData;
   success: boolean;
   message?: string;
+  isJamSession?: boolean;
 };
 
 export type GetThreadCompositionRequest = {
@@ -90,6 +91,15 @@ export type ApiErrorResponse = {
 export type SubmitChallengeScoreRequest = {
   postId: string;
   score: ChallengeScore;
+  shareOptions?: {
+    shareFullScore: boolean;
+    shareAccuracy: boolean;
+    shareTiming: boolean;
+    shareCompletion: boolean;
+    sharePersonalBest: boolean;
+    makePublicComment: boolean;
+  };
+  customMessage?: string;
 };
 
 export type SubmitChallengeScoreResponse = {
@@ -187,6 +197,27 @@ export type CreateRemixRequest = {
 
 export type CreateRemixResponse = {
   postId: string;
+  success: boolean;
+  message?: string;
+};
+// Enhanced Analytics API Types
+export type GetChallengeAnalyticsResponse = {
+  analytics: {
+    totalAttempts: number;
+    totalCompletions: number;
+    completionRate: number;
+    averageAccuracy: number;
+    averageTiming: number;
+    highestScore: number;
+    scoreDistribution: Record<string, number>;
+    lastUpdated: number;
+  } | null;
+  success: boolean;
+  message?: string;
+};
+
+export type GetPersonalBestResponse = {
+  personalBest: ChallengeScore | null;
   success: boolean;
   message?: string;
 };

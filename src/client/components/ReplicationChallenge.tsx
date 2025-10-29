@@ -347,7 +347,22 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
         }
       }
 
-      if (!isRecording) return;
+      // Add visual feedback - highlight the note
+      setActiveNotes((prev) => new Set([...prev, note]));
+
+      // Remove highlight after a short delay
+      setTimeout(() => {
+        setActiveNotes((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(note);
+          return newSet;
+        });
+      }, 200); // 200ms highlight duration
+
+      if (!isRecording) {
+        onNotePlay(note, velocity);
+        return;
+      }
 
       const currentTime = Date.now() - recordingStartTimeRef.current;
       const newNote: RecordedNote = {

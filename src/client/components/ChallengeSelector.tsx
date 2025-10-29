@@ -5,6 +5,7 @@ interface ChallengeSelectorProps {
   challenges: CompositionData[];
   onChallengeSelect: (challenge: CompositionData, challengeType: ChallengeType) => void;
   onBack: () => void;
+  preSelectedChallenge?: CompositionData | null;
 }
 
 interface ChallengeFilter {
@@ -16,12 +17,43 @@ export const ChallengeSelector: React.FC<ChallengeSelectorProps> = ({
   challenges,
   onChallengeSelect,
   onBack,
+  preSelectedChallenge,
 }) => {
   const [filter, setFilter] = useState<ChallengeFilter>({
     instrument: 'all',
     difficulty: 'all',
   });
-  const [selectedChallenge, setSelectedChallenge] = useState<CompositionData | null>(null);
+  const [selectedChallenge, setSelectedChallenge] = useState<CompositionData | null>(
+    preSelectedChallenge || null
+  );
+
+  // Auto-start challenge if pre-selected
+  React.useEffect(() => {
+    console.log(
+      '🔵 [ChallengeSelector] useEffect triggered, preSelectedChallenge:',
+      preSelectedChallenge
+    );
+    console.log('🔵 [ChallengeSelector] preSelectedChallenge details:', {
+      hasChallenge: !!preSelectedChallenge,
+      hasChallengeSettings: !!preSelectedChallenge?.metadata?.challengeSettings,
+      challengeType: preSelectedChallenge?.metadata?.challengeSettings?.challengeType,
+    });
+
+    if (preSelectedChallenge && preSelectedChallenge.metadata.challengeSettings) {
+      console.log(
+        '🔵 [ChallengeSelector] Auto-starting pre-selected challenge:',
+        preSelectedChallenge.metadata.title
+      );
+      const challengeType =
+        preSelectedChallenge.metadata.challengeSettings.challengeType || 'falling_tiles';
+      console.log('🔵 [ChallengeSelector] Calling onChallengeSelect with:', { challengeType });
+      onChallengeSelect(preSelectedChallenge, challengeType);
+    } else {
+      console.log(
+        '🔵 [ChallengeSelector] NOT auto-starting - missing preSelectedChallenge or challengeSettings'
+      );
+    }
+  }, [preSelectedChallenge, onChallengeSelect]);
 
   // Filter challenges based on current filter
   const filteredChallenges = challenges.filter((challenge) => {
@@ -102,7 +134,14 @@ export const ChallengeSelector: React.FC<ChallengeSelectorProps> = ({
     >
       {/* Header */}
       <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-        <h2 style={{ color: 'white', fontSize: '18px', marginBottom: '10px' }}>🏆 CHALLENGES</h2>
+        <h2 style={{ color: 'white', fontSize: '18px', marginBottom: '10px' }}>
+          {preSelectedChallenge ? '🎯 CHALLENGE READY' : '🏆 CHALLENGES'}
+        </h2>
+        {preSelectedChallenge && (
+          <p style={{ color: '#4ecdc4', fontSize: '10px', marginTop: '5px' }}>
+            Starting challenge: {preSelectedChallenge.metadata.title || 'Untitled'}
+          </p>
+        )}
       </div>
 
       {/* Simple Filters */}
@@ -182,7 +221,12 @@ export const ChallengeSelector: React.FC<ChallengeSelectorProps> = ({
               return (
                 <div
                   key={challenge.id}
-                  onClick={() => setSelectedChallenge(challenge)}
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent event bubbling
+                    console.log('🟡 Challenge card clicked:', challenge.metadata.title);
+                    // Navigate directly to challenge page when clicking on a challenge card
+                    onChallengeSelect(challenge, 'falling_tiles');
+                  }}
                   style={{
                     padding: '12px',
                     background: selectedChallenge?.id === challenge.id ? '#2a2a2a' : '#1a1a1a',
@@ -256,7 +300,7 @@ export const ChallengeSelector: React.FC<ChallengeSelectorProps> = ({
 
         {selectedChallenge && (
           <button
-            onClick={() => onChallengeSelect(selectedChallenge, 'falling_notes')}
+            onClick={() => onChallengeSelect(selectedChallenge, 'falling_tiles')}
             style={{
               padding: '10px 20px',
               background: '#4ecdc4',

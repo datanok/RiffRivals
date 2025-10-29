@@ -1,7 +1,7 @@
 // Chart Editor Component for Chart Creator Mode
 // Visual beatmap editor for creating falling tiles levels
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import type { ChartData, ChartNote, InstrumentType, DrumType } from '../../shared/types/music.js';
 import type { DhwaniAudioEngine } from '../audio/DhwaniAudioEngine.js';
 import { validateChart, snapToGrid, calculateDifficulty } from '../utils/chartValidation.js';
@@ -22,6 +22,100 @@ const GRID_SUBDIVISION = 4; // 16th notes
 // Default lanes for drums
 const DRUM_LANES: DrumType[] = ['kick', 'snare', 'hihat', 'crash'];
 
+// Generate a demo chart with accurate timing
+const generateDemoChart = (instrument: InstrumentType, bpm: number): ChartNote[] => {
+  const beatDuration = 60 / bpm;
+  const notes: ChartNote[] = [];
+
+  if (instrument === 'drums') {
+    // Keep your existing drum groove — it’s fine
+    for (let bar = 0; bar < 8; bar++) {
+      notes.push({
+        id: `kick_${bar}_1`,
+        time: (bar * 4 + 0) * beatDuration,
+        lane: 'kick',
+        velocity: 0.9,
+      });
+      notes.push({
+        id: `kick_${bar}_3`,
+        time: (bar * 4 + 2) * beatDuration,
+        lane: 'kick',
+        velocity: 0.85,
+      });
+      notes.push({
+        id: `snare_${bar}_2`,
+        time: (bar * 4 + 1) * beatDuration,
+        lane: 'snare',
+        velocity: 0.9,
+      });
+      notes.push({
+        id: `snare_${bar}_4`,
+        time: (bar * 4 + 3) * beatDuration,
+        lane: 'snare',
+        velocity: 0.9,
+      });
+      for (let beat = 0; beat < 4; beat++) {
+        notes.push({
+          id: `hihat_${bar}_${beat}`,
+          time: (bar * 4 + beat) * beatDuration,
+          lane: 'hihat',
+          velocity: 0.7,
+        });
+      }
+    }
+  } else {
+    // "Twinkle Twinkle Little Star" melody pattern
+    const melody = [
+      'C4',
+      'C4',
+      'G4',
+      'G4',
+      'A4',
+      'A4',
+      'G4',
+      'F4',
+      'F4',
+      'E4',
+      'E4',
+      'D4',
+      'D4',
+      'C4',
+      'G4',
+      'G4',
+      'F4',
+      'F4',
+      'E4',
+      'E4',
+      'D4',
+      'G4',
+      'G4',
+      'F4',
+      'F4',
+      'E4',
+      'E4',
+      'D4',
+      'C4',
+      'C4',
+      'G4',
+      'G4',
+      'A4',
+      'A4',
+      'G4',
+    ];
+
+    melody.forEach((note, i) => {
+      notes.push({
+        id: `song_${note}_${i}`,
+        time: i * beatDuration,
+        lane: note,
+        velocity: 0.85,
+      });
+    });
+  }
+
+  return notes;
+};
+
 export const ChartEditor: React.FC<ChartEditorProps> = ({
   initialChart,
   instrument,
@@ -29,8 +123,15 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   onCancel,
   audioEngine,
 }) => {
-  // Mode: 'edit' for editing, 'test' for playing/testing
-  const [mode, setMode] = useState<'edit' | 'test'>('edit');
+  // Mode: 'edit' for editing, 'test' for playing/testing, 'completed' for showing results
+  const [mode, setMode] = useState<'edit' | 'test' | 'completed'>('edit');
+  const [testResult, setTestResult] = useState<{
+    score: { accuracy: number; timing: number };
+    cleared: boolean;
+  } | null>(null);
+
+  // Track current challenge score for timeout scenarios
+  const currentChallengeScoreRef = useRef<{ accuracy: number; timing: number } | null>(null);
 
   // Chart data
   const [chartData, setChartData] = useState<ChartData>(() => {
@@ -55,12 +156,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
-  const [testScore, setTestScore] = useState<{ accuracy: number; timing: number } | null>(null);
-
-  // Canvas ref for timeline
-  const timelineCanvasRef = useRef<HTMLCanvasElement>(null);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
 
   // Validate chart whenever it changes
   useEffect(() => {
@@ -83,6 +178,17 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     (time: number, lane: string) => {
       const adjustedTime = snapEnabled ? snapToGrid(time, chartData.bpm, GRID_SUBDIVISION) : time;
 
+      // Check for overlapping notes in the same lane
+      const OVERLAP_THRESHOLD = 0.1; // 100ms threshold
+      const hasOverlap = chartData.notes.some(
+        (note) => note.lane === lane && Math.abs(note.time - adjustedTime) < OVERLAP_THRESHOLD
+      );
+
+      if (hasOverlap) {
+        alert(`Cannot place note: Another note already exists in lane "${lane}" at this time!`);
+        return;
+      }
+
       const newNote: ChartNote = {
         id: `note_${Date.now()}_${Math.random()}`,
         time: adjustedTime,
@@ -95,7 +201,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         notes: [...prev.notes, newNote].sort((a, b) => a.time - b.time),
       }));
     },
-    [snapEnabled, chartData.bpm]
+    [snapEnabled, chartData.bpm, chartData.notes]
   );
 
   // Remove note by ID
@@ -112,14 +218,22 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setChartData((prev) => ({ ...prev, notes: [], cleared: false }));
   }, []);
 
+  // Load demo chart
+  const loadDemo = useCallback(() => {
+    const demoNotes = generateDemoChart(chartData.instrument, chartData.bpm);
+    const difficulty = calculateDifficulty({ ...chartData, notes: demoNotes });
+    setChartData((prev) => ({
+      ...prev,
+      title: prev.title || 'Demo Chart',
+      notes: demoNotes,
+      cleared: false,
+      difficulty,
+    }));
+  }, [chartData]);
+
   // Update BPM
   const updateBPM = useCallback((newBPM: number) => {
     setChartData((prev) => ({ ...prev, bpm: Math.max(60, Math.min(240, newBPM)) }));
-  }, []);
-
-  // Update duration
-  const updateDuration = useCallback((newDuration: number) => {
-    setChartData((prev) => ({ ...prev, duration: Math.max(10, Math.min(120, newDuration)) }));
   }, []);
 
   // Update title
@@ -133,31 +247,32 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       alert('Add some notes before testing!');
       return;
     }
+    // Reset score when starting new test
+    currentChallengeScoreRef.current = null;
     setMode('test');
-    setTestScore(null);
   }, [chartData.notes.length]);
 
   // Handle test completion
   const handleTestComplete = useCallback((score: { accuracy: number; timing: number }) => {
-    setTestScore(score);
-
-    // Check if cleared
+    // Check if cleared - only check accuracy, timing is not used
     const MIN_ACCURACY = 70;
-    const MIN_TIMING = 70;
-    const cleared = score.accuracy >= MIN_ACCURACY && score.timing >= MIN_TIMING;
+    const cleared = score.accuracy >= MIN_ACCURACY;
 
     setChartData((prev) => ({ ...prev, cleared }));
-
-    if (cleared) {
-      alert(
-        `Chart cleared! Accuracy: ${score.accuracy.toFixed(1)}%, Timing: ${score.timing.toFixed(1)}%`
-      );
-    } else {
-      alert(
-        `Not cleared yet. Required: ${MIN_ACCURACY}% accuracy and ${MIN_TIMING}% timing. Your score: ${score.accuracy.toFixed(1)}% accuracy, ${score.timing.toFixed(1)}% timing.`
-      );
-    }
+    setTestResult({ score, cleared });
+    setMode('completed');
   }, []);
+
+  // Force end test mode with timeout
+  const forceEndTest = useCallback(() => {
+    console.log('ChartEditor: Force ending test mode due to timeout');
+    console.log('ChartEditor: Current challenge score:', currentChallengeScoreRef.current);
+
+    // Use the actual score if available, otherwise fallback
+    const scoreToUse = currentChallengeScoreRef.current || { accuracy: 60, timing: 65 };
+    console.log('ChartEditor: Using score:', scoreToUse);
+    handleTestComplete(scoreToUse);
+  }, [handleTestComplete]);
 
   // Save chart
   const handleSave = useCallback(() => {
@@ -304,6 +419,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         <div style={{ marginBottom: '16px', position: 'relative' }}>
           <div style={{ color: '#fff', marginBottom: '8px' }}>
             Click on timeline to add notes (Selected lane: {selectedLane || 'None'})
+            <br />
+            <span style={{ color: '#00d4ff', fontSize: '12px' }}>
+              💡 Use the time scale above to place notes precisely!
+            </span>
           </div>
           <div
             style={{
@@ -320,9 +439,60 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
               style={{
                 position: 'relative',
                 minWidth: `${chartData.duration * 50}px`,
-                height: `${chartData.lanes.length * 60}px`,
+                height: `${chartData.lanes.length * 60 + 30}px`, // Extra space for scale
               }}
             >
+              {/* Time scale/ruler */}
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: '30px',
+                  background: '#0a0a0a',
+                  borderBottom: '2px solid #0f3460',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+              >
+                {Array.from({ length: Math.ceil(chartData.duration) + 1 }).map((_, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      position: 'absolute',
+                      left: `${(i / chartData.duration) * 100}%`,
+                      transform: 'translateX(-50%)',
+                      color: '#00d4ff',
+                      fontSize: '10px',
+                      fontWeight: 'bold',
+                      textShadow: '1px 1px 0 #000',
+                    }}
+                  >
+                    {i}s
+                  </div>
+                ))}
+                {/* Sub-second markers */}
+                {Array.from({ length: Math.ceil(chartData.duration) * 4 }).map((_, i) => {
+                  const time = i * 0.25;
+                  if (time > chartData.duration) return null;
+                  return (
+                    <div
+                      key={`sub-${i}`}
+                      style={{
+                        position: 'absolute',
+                        left: `${(time / chartData.duration) * 100}%`,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        width: '1px',
+                        height: i % 4 === 0 ? '15px' : '8px',
+                        background: i % 4 === 0 ? '#00d4ff' : '#0f3460',
+                      }}
+                    />
+                  );
+                })}
+              </div>
+
               {/* Grid lines */}
               {Array.from({ length: Math.ceil(chartData.duration) }).map((_, i) => (
                 <div
@@ -330,7 +500,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                   style={{
                     position: 'absolute',
                     left: `${(i / chartData.duration) * 100}%`,
-                    top: 0,
+                    top: '30px', // Start below the scale
                     bottom: 0,
                     width: '1px',
                     background: i % 4 === 0 ? '#0f3460' : '#1a1a2e',
@@ -354,7 +524,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                   }}
                   style={{
                     position: 'absolute',
-                    top: `${laneIndex * 60}px`,
+                    top: `${30 + laneIndex * 60}px`, // Start below the scale
                     left: 0,
                     right: 0,
                     height: '60px',
@@ -430,6 +600,22 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           </button>
 
           <button
+            onClick={loadDemo}
+            style={{
+              padding: '12px 24px',
+              borderRadius: '8px',
+              border: '3px solid #000',
+              background: 'linear-gradient(45deg, #4ecdc4, #44a08d)',
+              color: '#fff',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              fontSize: '14px',
+            }}
+          >
+            🎮 LOAD DEMO
+          </button>
+
+          <button
             onClick={clearAllNotes}
             disabled={chartData.notes.length === 0}
             style={{
@@ -444,6 +630,25 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
             }}
           >
             🗑️ CLEAR ALL
+          </button>
+
+          <button
+            onClick={() => {
+              setChartData((prev) => ({ ...prev, cleared: false }));
+              alert('Level cleared status reset! You can now test and clear the level again.');
+            }}
+            style={{
+              padding: '12px 24px',
+              borderRadius: '8px',
+              border: '3px solid #000',
+              background: '#ffff00',
+              color: '#000',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              fontSize: '14px',
+            }}
+          >
+            🔄 RESET CLEAR STATUS
           </button>
 
           <button
@@ -535,6 +740,21 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     );
   };
 
+  // Set up timeout for test mode
+  useEffect(() => {
+    if (mode === 'test') {
+      const timeout = setTimeout(
+        () => {
+          console.log('ChartEditor: Test timeout reached, forcing completion');
+          forceEndTest();
+        },
+        (chartData.duration + 5) * 1000
+      ); // Duration + 5 seconds buffer
+
+      return () => clearTimeout(timeout);
+    }
+  }, [mode, chartData.duration, forceEndTest]);
+
   // Render test mode
   const renderTestMode = () => {
     // Convert chart notes to format expected by FallingNotesChallenge
@@ -564,31 +784,166 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           </button>
         </div>
 
+        <div style={{ textAlign: 'center', marginBottom: '16px', color: '#fff' }}>
+          <h3>Testing Chart: {chartData.title || 'Untitled'}</h3>
+          <p>
+            Duration: {chartData.duration}s | Notes: {chartData.notes.length}
+          </p>
+        </div>
+
         <FallingNotesChallenge
           instrument={chartData.instrument}
           onNoteHit={() => {}}
           onScoreUpdate={(score, accuracy) => {
-            // Track score during play
+            // Track score during play - store latest for timeout scenarios
+            // This gives us a fallback if timeout happens before onChallengeComplete
+            if (score !== undefined && accuracy !== undefined) {
+              currentChallengeScoreRef.current = {
+                accuracy: accuracy,
+                timing: 0, // Timing not available from onScoreUpdate, will be 0
+              };
+            }
           }}
           difficulty="medium"
           isActive={true}
           onComplete={() => {
-            // Calculate final score
-            const finalScore = { accuracy: 85, timing: 90 }; // Placeholder - would come from actual gameplay
-            handleTestComplete(finalScore);
-            setMode('edit');
+            // This will be called when the challenge naturally ends
+            console.log('ChartEditor: Challenge completed, waiting for onChallengeComplete');
+            // Don't call handleTestComplete here - let onChallengeComplete handle it
+            // This prevents using the hardcoded fallback score
           }}
           songNotes={songNotes}
-          audioEngine={audioEngine}
+          audioEngine={audioEngine || null}
           challengeMode="challenge"
           onChallengeComplete={(score) => {
-            handleTestComplete({
+            console.log('ChartEditor: Challenge completed with score:', score);
+            const finalScore = {
               accuracy: score.accuracyScore,
               timing: score.timingScore,
-            });
-            setMode('edit');
+            };
+            // Store score for potential timeout use
+            currentChallengeScoreRef.current = finalScore;
+            // Call handleTestComplete with the actual score
+            handleTestComplete(finalScore);
           }}
         />
+      </div>
+    );
+  };
+
+  // Render completion screen
+  const renderCompletionScreen = () => {
+    if (!testResult) return null;
+
+    const { score, cleared } = testResult;
+    const MIN_ACCURACY = 70;
+
+    return (
+      <div
+        style={{ padding: '40px', background: '#1a1a1a', borderRadius: '8px', textAlign: 'center' }}
+      >
+        <h2
+          style={{ color: cleared ? '#00ff00' : '#ff6600', marginBottom: '20px', fontSize: '28px' }}
+        >
+          {cleared ? '🎉 CHART CLEARED!' : '❌ CHART NOT CLEARED'}
+        </h2>
+
+        <div style={{ marginBottom: '30px' }}>
+          <div style={{ color: '#fff', fontSize: '18px', marginBottom: '10px' }}>
+            Your Performance:
+          </div>
+          <div
+            style={{ display: 'flex', justifyContent: 'center', gap: '30px', marginBottom: '20px' }}
+          >
+            <div style={{ color: '#00d4ff', fontSize: '24px', fontWeight: 'bold' }}>
+              Accuracy: {score.accuracy.toFixed(1)}%
+            </div>
+          </div>
+          <div style={{ color: '#666', fontSize: '14px' }}>Required: {MIN_ACCURACY}% accuracy</div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
+          {cleared ? (
+            <>
+              <button
+                onClick={() => {
+                  handleSave();
+                  setMode('edit');
+                  setTestResult(null);
+                }}
+                style={{
+                  padding: '16px 32px',
+                  borderRadius: '8px',
+                  border: '3px solid #000',
+                  background: 'linear-gradient(180deg, #00ff00 0%, #00cc00 100%)',
+                  color: '#000',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                }}
+              >
+                ✅ SUBMIT & PUBLISH
+              </button>
+              <button
+                onClick={() => {
+                  setMode('edit');
+                  setTestResult(null);
+                }}
+                style={{
+                  padding: '16px 32px',
+                  borderRadius: '8px',
+                  border: '3px solid #000',
+                  background: '#4ecdc4',
+                  color: '#000',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                }}
+              >
+                📝 BACK TO EDITOR
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => {
+                  setMode('test');
+                  setTestResult(null);
+                }}
+                style={{
+                  padding: '16px 32px',
+                  borderRadius: '8px',
+                  border: '3px solid #000',
+                  background: 'linear-gradient(180deg, #ff6600 0%, #ff4400 100%)',
+                  color: '#fff',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                }}
+              >
+                🔄 RETRY TEST
+              </button>
+              <button
+                onClick={() => {
+                  setMode('edit');
+                  setTestResult(null);
+                }}
+                style={{
+                  padding: '16px 32px',
+                  borderRadius: '8px',
+                  border: '3px solid #000',
+                  background: '#666',
+                  color: '#fff',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                }}
+              >
+                📝 BACK TO EDITOR
+              </button>
+            </>
+          )}
+        </div>
       </div>
     );
   };
@@ -599,7 +954,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         🎼 CHART CREATOR MODE
       </h2>
 
-      {mode === 'edit' ? renderTimelineEditor() : renderTestMode()}
+      {mode === 'edit'
+        ? renderTimelineEditor()
+        : mode === 'test'
+          ? renderTestMode()
+          : renderCompletionScreen()}
     </div>
   );
 };

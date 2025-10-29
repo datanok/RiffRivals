@@ -39,6 +39,12 @@ import { VisualEffects } from './components/VisualEffects.js';
 import { ChallengeSelector } from './components/ChallengeSelector.js';
 import { ReplicationChallenge } from './components/ReplicationChallenge.js';
 import { ChallengeResults } from './components/ChallengeResults.js';
+import {
+  ChallengeScoreSubmission,
+  type ChallengeScoreSubmissionData,
+} from './components/ChallengeScoreSubmission.js';
+import { ChallengeAnalytics } from './components/ChallengeAnalytics.js';
+import { JamReply } from './components/JamReply.js';
 import { FallingNotesChallenge } from './components/FallingNotesChallenge.js';
 import { SimplifiedCreateMode } from './components/SimplifiedCreateMode.js';
 import { ChartEditor } from './components/ChartEditor.js';
@@ -145,6 +151,13 @@ type AppState = {
   challengeScore: ChallengeScore | null;
   personalBest: ChallengeScore | null;
   leaderboardScores: ChallengeScore[];
+  isChallengeActive: boolean; // Control whether challenge has started
+  showScoreSubmission: boolean; // Show score submission interface
+  // Jam session state
+  jamSessionPostId: string | null;
+  jamSessionComposition: CompositionData | null;
+  // Jam creation state
+  jamCreationComposition: CompositionData | null;
 };
 
 // Predefined songs for challenge mode
@@ -1126,6 +1139,588 @@ const CreateMode: React.FC<{ onCompositionCreate: (composition: CompositionData)
   );
 };
 
+// Recent Jam Sessions Component
+const RecentJamSessions: React.FC<{
+  onJoinJam: (postId: string) => void;
+}> = ({ onJoinJam }) => {
+  const [jamSessions, setJamSessions] = useState<
+    Array<{
+      postId: string;
+      title: string;
+      collaborators: string[];
+      layerCount: number;
+      createdAt: number;
+    }>
+  >([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchJamSessions = async () => {
+      try {
+        const response = await fetch('/api/get-recent-jams');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            setJamSessions(data.jamSessions || []);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching jam sessions:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void fetchJamSessions();
+  }, []);
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          background: 'linear-gradient(135deg, #1a1a3e 0%, #0f0f2e 100%)',
+          border: '3px solid #4ecdc4',
+          padding: 'clamp(16px, 3vw, 24px)',
+          borderRadius: '0',
+          boxShadow: '0 0 15px rgba(78, 205, 196, 0.3), inset 0 0 15px rgba(78, 205, 196, 0.05)',
+          marginBottom: 'clamp(20px, 4vh, 40px)',
+          textAlign: 'center',
+        }}
+      >
+        <div
+          style={{
+            color: '#4ecdc4',
+            fontSize: 'clamp(8px, 1.8vw, 10px)',
+            letterSpacing: '2px',
+            textShadow: '0 0 5px #4ecdc4',
+          }}
+        >
+          ▸▸▸ LOADING JAM SESSIONS ◂◂◂
+        </div>
+      </div>
+    );
+  }
+
+  if (jamSessions.length === 0) {
+    return (
+      <div
+        style={{
+          background: 'linear-gradient(135deg, #1a1a3e 0%, #0f0f2e 100%)',
+          border: '3px solid #4ecdc4',
+          padding: 'clamp(16px, 3vw, 24px)',
+          borderRadius: '0',
+          boxShadow: '0 0 15px rgba(78, 205, 196, 0.3), inset 0 0 15px rgba(78, 205, 196, 0.05)',
+          marginBottom: 'clamp(20px, 4vh, 40px)',
+          textAlign: 'center',
+        }}
+      >
+        <div
+          style={{
+            color: '#4ecdc4',
+            fontSize: 'clamp(8px, 1.8vw, 10px)',
+            marginBottom: 'clamp(10px, 2vh, 16px)',
+            letterSpacing: '2px',
+            textShadow: '0 0 5px #4ecdc4',
+          }}
+        >
+          ▸▸▸ RECENT JAM SESSIONS ◂◂◂
+        </div>
+        <div
+          style={{
+            color: '#fff',
+            fontSize: 'clamp(7px, 1.5vw, 9px)',
+            lineHeight: '2',
+          }}
+        >
+          No jam sessions yet. Be the first to start one!
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        background: 'linear-gradient(135deg, #1a1a3e 0%, #0f0f2e 100%)',
+        border: '3px solid #4ecdc4',
+        padding: 'clamp(16px, 3vw, 24px)',
+        borderRadius: '0',
+        boxShadow: '0 0 15px rgba(78, 205, 196, 0.3), inset 0 0 15px rgba(78, 205, 196, 0.05)',
+        marginBottom: 'clamp(20px, 4vh, 40px)',
+      }}
+    >
+      <div
+        style={{
+          color: '#4ecdc4',
+          fontSize: 'clamp(8px, 1.8vw, 10px)',
+          marginBottom: 'clamp(16px, 3vh, 24px)',
+          letterSpacing: '2px',
+          textShadow: '0 0 5px #4ecdc4',
+          textAlign: 'center',
+        }}
+      >
+        ▸▸▸ RECENT JAM SESSIONS ◂◂◂
+      </div>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+          gap: 'clamp(12px, 2vw, 16px)',
+        }}
+      >
+        {jamSessions.map((jam) => (
+          <div
+            key={jam.postId}
+            onClick={() => onJoinJam(jam.postId)}
+            style={{
+              background: 'linear-gradient(135deg, #2a2a3e 0%, #1a1a2e 100%)',
+              border: '2px solid #4ecdc4',
+              padding: 'clamp(12px, 2vw, 16px)',
+              borderRadius: '0',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              boxShadow: '0 2px 0 #000, 0 0 8px rgba(78, 205, 196, 0.2)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 4px 0 #000, 0 0 12px rgba(78, 205, 196, 0.4)';
+              e.currentTarget.style.borderColor = '#00ff88';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 2px 0 #000, 0 0 8px rgba(78, 205, 196, 0.2)';
+              e.currentTarget.style.borderColor = '#4ecdc4';
+            }}
+          >
+            <div
+              style={{
+                color: '#fff',
+                fontSize: 'clamp(8px, 1.6vw, 10px)',
+                fontWeight: 'bold',
+                marginBottom: '8px',
+                textShadow: '0 0 3px #4ecdc4',
+              }}
+            >
+              🎵 {jam.title}
+            </div>
+
+            <div
+              style={{
+                color: '#4ecdc4',
+                fontSize: 'clamp(6px, 1.2vw, 8px)',
+                marginBottom: '6px',
+              }}
+            >
+              {jam.layerCount} LAYERS • {jam.collaborators.length} ARTISTS
+            </div>
+
+            {jam.collaborators.length > 0 && (
+              <div
+                style={{
+                  color: '#aaa',
+                  fontSize: 'clamp(5px, 1vw, 7px)',
+                  marginBottom: '8px',
+                }}
+              >
+                {jam.collaborators.slice(0, 3).join(', ')}
+                {jam.collaborators.length > 3 && ` +${jam.collaborators.length - 3} more`}
+              </div>
+            )}
+
+            <div
+              style={{
+                color: '#00ff88',
+                fontSize: 'clamp(6px, 1.2vw, 8px)',
+                fontWeight: 'bold',
+                textAlign: 'center',
+                marginTop: '8px',
+                textShadow: '0 0 3px #00ff88',
+              }}
+            >
+              ▸ CLICK TO JOIN ◂
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Retro Home Screen Component
+const RetroHomeScreen: React.FC<{
+  setAppState: React.Dispatch<React.SetStateAction<AppState>>;
+}> = ({ setAppState }) => {
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        background: '#0a0a1a',
+        padding: '16px',
+        fontFamily: "'Press Start 2P', monospace",
+        display: 'flex',
+        alignItems: 'center',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Retro grid background */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundImage: `
+          linear-gradient(0deg, transparent 24%, rgba(0, 212, 255, 0.05) 25%, rgba(0, 212, 255, 0.05) 26%, transparent 27%, transparent 74%, rgba(0, 212, 255, 0.05) 75%, rgba(0, 212, 255, 0.05) 76%, transparent 77%, transparent),
+          linear-gradient(90deg, transparent 24%, rgba(0, 212, 255, 0.05) 25%, rgba(0, 212, 255, 0.05) 26%, transparent 27%, transparent 74%, rgba(0, 212, 255, 0.05) 75%, rgba(0, 212, 255, 0.05) 76%, transparent 77%, transparent)
+        `,
+          backgroundSize: '50px 50px',
+          opacity: 0.3,
+        }}
+      />
+
+      <div
+        style={{
+          maxWidth: '900px',
+          margin: '0 auto',
+          width: '100%',
+          position: 'relative',
+          zIndex: 1,
+        }}
+      >
+        {/* Header with pixel border */}
+        <div
+          style={{
+            textAlign: 'center',
+            marginBottom: 'clamp(24px, 5vh, 48px)',
+            background: 'linear-gradient(180deg, #1a1a3e 0%, #0f0f2e 100%)',
+            padding: 'clamp(16px, 3vh, 24px)',
+            border: '4px solid',
+            borderImage: 'linear-gradient(45deg, #00d4ff, #ff00ff) 1',
+            boxShadow: '0 0 20px rgba(0, 212, 255, 0.3), inset 0 0 20px rgba(0, 212, 255, 0.1)',
+            position: 'relative',
+          }}
+        >
+          {/* Scanline effect */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background:
+                'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 212, 255, 0.03) 2px, rgba(0, 212, 255, 0.03) 4px)',
+              pointerEvents: 'none',
+            }}
+          />
+
+          <h1
+            style={{
+              color: '#00d4ff',
+              fontSize: 'clamp(18px, 4vw, 36px)',
+              marginBottom: '8px',
+              textShadow: '0 0 10px #00d4ff, 2px 2px 0 #ff00ff',
+              position: 'relative',
+            }}
+          >
+            🎮 RIFFRIVALS
+          </h1>
+          <p
+            style={{
+              color: '#ff00ff',
+              fontSize: 'clamp(7px, 1.5vw, 10px)',
+              letterSpacing: '2px',
+              textShadow: '0 0 5px #ff00ff',
+              position: 'relative',
+            }}
+          >
+            ▸ RHYTHM BATTLES BY THE COMMUNITY ◂
+          </p>
+        </div>
+
+        {/* Mode Cards */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: 'clamp(12px, 2vw, 20px)',
+            marginBottom: 'clamp(20px, 4vh, 40px)',
+          }}
+        >
+          <ModeCard
+            emoji="🎸"
+            title="CREATE"
+            description="Record a musical loop"
+            color="#ff6b6b"
+            glowColor="rgba(255, 107, 107, 0.4)"
+            onClick={() => setAppState((prev) => ({ ...prev, mode: 'create' }))}
+          />
+          <ModeCard
+            emoji="🎼"
+            title="CHART"
+            description="Design falling tiles"
+            color="#4ecdc4"
+            glowColor="rgba(78, 205, 196, 0.4)"
+            onClick={() => setAppState((prev) => ({ ...prev, mode: 'chart_creator' }))}
+          />
+          <ModeCard
+            emoji="🎮"
+            title="PLAY"
+            description="Try challenges"
+            color="#a29bfe"
+            glowColor="rgba(162, 155, 254, 0.4)"
+            onClick={() => setAppState((prev) => ({ ...prev, mode: 'challenge_select' }))}
+          />
+        </div>
+
+        {/* Jam Session Quick Start - HIDDEN (set to false to show) */}
+        {false && (
+          <div
+            style={{
+              background: 'linear-gradient(135deg, #1a1a3e 0%, #0f0f2e 100%)',
+              border: '3px solid #ff6b6b',
+              padding: 'clamp(16px, 3vw, 24px)',
+              borderRadius: '0',
+              boxShadow:
+                '0 0 15px rgba(255, 107, 107, 0.3), inset 0 0 15px rgba(255, 107, 107, 0.05)',
+              position: 'relative',
+              marginTop: 'clamp(20px, 4vh, 40px)',
+            }}
+          >
+            <div
+              style={{
+                color: '#ff6b6b',
+                fontSize: 'clamp(8px, 1.8vw, 10px)',
+                marginBottom: 'clamp(10px, 2vh, 16px)',
+                letterSpacing: '2px',
+                textShadow: '0 0 5px #ff6b6b',
+                textAlign: 'center',
+              }}
+            >
+              ▸▸▸ JAM SESSION ◂◂◂
+            </div>
+            <div
+              style={{
+                color: '#fff',
+                fontSize: 'clamp(7px, 1.5vw, 9px)',
+                lineHeight: '2',
+                textAlign: 'center',
+                marginBottom: 'clamp(10px, 2vh, 16px)',
+              }}
+            >
+              Start a collaborative jam session! Create the first track and let others add layers.
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <button
+                onClick={() => setAppState((prev) => ({ ...prev, mode: 'jam_create' }))}
+                style={{
+                  padding: 'clamp(8px, 2vw, 12px) clamp(16px, 3vw, 24px)',
+                  background: 'linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%)',
+                  color: '#fff',
+                  border: '2px solid #000',
+                  borderRadius: '0',
+                  fontSize: 'clamp(7px, 1.5vw, 9px)',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  fontFamily: "'Press Start 2P', monospace",
+                  boxShadow: '0 4px 0 #000, 0 0 10px rgba(255, 107, 107, 0.4)',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow =
+                    '0 6px 0 #000, 0 0 15px rgba(255, 107, 107, 0.6)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow =
+                    '0 4px 0 #000, 0 0 10px rgba(255, 107, 107, 0.4)';
+                }}
+              >
+                🎵 START JAM SESSION
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Recent Jam Sessions */}
+        <RecentJamSessions
+          onJoinJam={(postId) => {
+            // This will call handleStartJamSession with the postId
+            const event = new CustomEvent('riffrivals:joinJam', {
+              detail: { postId },
+            });
+            window.dispatchEvent(event);
+          }}
+        />
+
+        {/* Info Box with retro styling */}
+        <div
+          style={{
+            background: 'linear-gradient(135deg, #1a1a3e 0%, #0f0f2e 100%)',
+            border: '3px solid #00d4ff',
+            padding: 'clamp(16px, 3vw, 24px)',
+            borderRadius: '0',
+            boxShadow: '0 0 15px rgba(0, 212, 255, 0.3), inset 0 0 15px rgba(0, 212, 255, 0.05)',
+            position: 'relative',
+          }}
+        >
+          {/* Corner decorations */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '-3px',
+              left: '-3px',
+              width: '12px',
+              height: '12px',
+              background: '#00d4ff',
+              boxShadow: '0 0 8px #00d4ff',
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              top: '-3px',
+              right: '-3px',
+              width: '12px',
+              height: '12px',
+              background: '#00d4ff',
+              boxShadow: '0 0 8px #00d4ff',
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '-3px',
+              left: '-3px',
+              width: '12px',
+              height: '12px',
+              background: '#00d4ff',
+              boxShadow: '0 0 8px #00d4ff',
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '-3px',
+              right: '-3px',
+              width: '12px',
+              height: '12px',
+              background: '#00d4ff',
+              boxShadow: '0 0 8px #00d4ff',
+            }}
+          />
+
+          <div
+            style={{
+              color: '#00d4ff',
+              fontSize: 'clamp(8px, 1.8vw, 10px)',
+              marginBottom: 'clamp(10px, 2vh, 16px)',
+              letterSpacing: '2px',
+              textShadow: '0 0 5px #00d4ff',
+            }}
+          >
+            ▸▸▸ HOW IT WORKS ◂◂◂
+          </div>
+          <div
+            style={{
+              color: '#fff',
+              fontSize: 'clamp(7px, 1.5vw, 9px)',
+              lineHeight: '2',
+            }}
+          >
+            <div style={{ marginBottom: '4px' }}>▸ Create challenges by recording or designing</div>
+            <div style={{ marginBottom: '4px' }}>▸ Compete for high scores on community levels</div>
+            <div style={{ marginBottom: '4px' }}>▸ Vote for the best challenges</div>
+            <div>▸ Remix and add your own twist</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Mode Card Component
+const ModeCard: React.FC<{
+  emoji: string;
+  title: string;
+  description: string;
+  color: string;
+  glowColor: string;
+  onClick: () => void;
+}> = ({ emoji, title, description, color, glowColor, onClick }) => {
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{
+        background: isHovered
+          ? `linear-gradient(135deg, ${color} 0%, ${color}dd 100%)`
+          : 'linear-gradient(135deg, #1a1a3e 0%, #0f0f2e 100%)',
+        border: `4px solid ${color}`,
+        borderRadius: '0',
+        padding: 'clamp(20px, 4vw, 32px) clamp(16px, 3vw, 24px)',
+        cursor: 'pointer',
+        transition: 'all 0.2s',
+        textAlign: 'center',
+        transform: isHovered ? 'translateY(-4px)' : 'translateY(0)',
+        boxShadow: isHovered
+          ? `0 8px 0 #000, 0 0 20px ${glowColor}`
+          : `0 4px 0 #000, 0 0 10px ${glowColor}`,
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Scanline effect */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background:
+            'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255, 255, 255, 0.02) 2px, rgba(255, 255, 255, 0.02) 4px)',
+          pointerEvents: 'none',
+        }}
+      />
+
+      <div
+        style={{
+          fontSize: 'clamp(24px, 5vw, 40px)',
+          marginBottom: 'clamp(8px, 2vh, 16px)',
+          filter: isHovered ? 'drop-shadow(0 0 8px currentColor)' : 'none',
+          transition: 'filter 0.2s',
+          position: 'relative',
+        }}
+      >
+        {emoji}
+      </div>
+      <h3
+        style={{
+          color: '#fff',
+          fontSize: 'clamp(10px, 2vw, 14px)',
+          marginBottom: 'clamp(6px, 1.5vh, 12px)',
+          letterSpacing: '2px',
+          textShadow: isHovered ? `0 0 10px ${color}` : 'none',
+          transition: 'text-shadow 0.2s',
+          position: 'relative',
+        }}
+      >
+        {title}
+      </h3>
+      <p
+        style={{
+          color: isHovered ? '#fff' : '#999',
+          fontSize: 'clamp(7px, 1.5vw, 9px)',
+          lineHeight: '1.5',
+          transition: 'color 0.2s',
+          position: 'relative',
+        }}
+      >
+        {description}
+      </p>
+    </button>
+  );
+};
+
 export const App = () => {
   const [appState, setAppState] = useState<AppState>({
     mode: 'home',
@@ -1141,6 +1736,13 @@ export const App = () => {
     challengeScore: null,
     personalBest: null,
     leaderboardScores: [],
+    isChallengeActive: false, // Control whether challenge has started
+    showScoreSubmission: false, // Show score submission interface
+    // Jam session state
+    jamSessionPostId: null,
+    jamSessionComposition: null,
+    // Jam creation state
+    jamCreationComposition: null,
   });
 
   const [loading, setLoading] = useState(true);
@@ -1224,10 +1826,21 @@ export const App = () => {
       }));
     };
 
+    // Listen for join jam events from RecentJamSessions
+    const handleJoinJamEvent = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { postId } = customEvent.detail;
+      if (postId) {
+        void handleStartJamSession(postId);
+      }
+    };
+
     window.addEventListener('riffrivals:remix', handleRemixEvent);
+    window.addEventListener('riffrivals:joinJam', handleJoinJamEvent);
 
     return () => {
       window.removeEventListener('riffrivals:remix', handleRemixEvent);
+      window.removeEventListener('riffrivals:joinJam', handleJoinJamEvent);
     };
   }, []);
 
@@ -1272,17 +1885,257 @@ export const App = () => {
             currentPostId: data.postId || null,
           }));
 
-          // If we have a postId, determine the initial mode
+          // If we have a postId, navigate to challenge_select mode and load the composition
           if (data.postId) {
-            // Check URL parameters or context to determine if this is a jam reply or challenge
+            // Check URL parameters first
             const urlParams = new URLSearchParams(window.location.search);
             const mode = urlParams.get('mode') as UIMode;
 
             // Allow specific modes from URL parameters
             if (mode && ['create', 'chart_creator', 'challenge_select', 'remix'].includes(mode)) {
               setAppState((prev) => ({ ...prev, mode }));
+            } else {
+              // We have a postId - fetch composition first, then navigate based on challenge type
+              console.log('🔵 PostId detected, fetching composition...');
+
+              // Fetch composition data first, then navigate to the appropriate mode
+              try {
+                const compositionResponse = await fetch('/api/get-composition', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({ postId: data.postId }),
+                });
+
+                if (compositionResponse.ok) {
+                  const compositionData = await compositionResponse.json();
+                  console.log('🔵 Composition data received:', compositionData);
+
+                  if (compositionData.success && compositionData.composition) {
+                    const composition = compositionData.composition;
+                    console.log('🔵 Composition metadata:', composition.metadata);
+                    console.log('🔵 Server says isJamSession:', compositionData.isJamSession);
+
+                    // Check if this is a jam session using server information
+                    if (compositionData.isJamSession) {
+                      console.log(
+                        '🔵 Server confirmed jam session, redirecting to jam session mode'
+                      );
+
+                      // This is a jam session - redirect to jam session mode
+                      void handleStartJamSession(data.postId);
+                      return;
+                    }
+
+                    // Ensure composition has challengeSettings - create defaults if missing
+                    let finalComposition = composition;
+                    if (!composition.metadata.challengeSettings) {
+                      console.log('🔵 No challenge settings found, generating defaults');
+
+                      // Use first layer to calculate metadata, default to 'falling_tiles' challenge type
+                      const firstTrack = composition.layers[0];
+                      if (firstTrack) {
+                        const challengeMetadata = calculateChallengeMetadata(
+                          firstTrack,
+                          'falling_tiles',
+                          'auto'
+                        );
+
+                        finalComposition = {
+                          ...composition,
+                          metadata: {
+                            ...composition.metadata,
+                            challengeSettings: {
+                              challengeType: 'falling_tiles',
+                              baseDifficulty: 'auto',
+                              calculatedDifficulty: challengeMetadata.calculatedDifficulty,
+                              scoringWeights: challengeMetadata.scoringWeights,
+                              allowedAttempts: 3,
+                              timeLimit: Math.ceil(firstTrack.duration),
+                              accuracyThreshold: 70,
+                              leaderboard: [],
+                            },
+                          },
+                        };
+                        console.log(
+                          '🔵 Generated default challenge settings:',
+                          finalComposition.metadata.challengeSettings
+                        );
+                      }
+                    } else {
+                      console.log('🔵 Detected challenge post with challenge settings');
+                      console.log('🔵 Challenge settings:', composition.metadata.challengeSettings);
+                    }
+
+                    // Determine the target mode based on challenge type
+                    const challengeType =
+                      finalComposition.metadata.challengeSettings?.challengeType || 'falling_tiles';
+
+                    console.log('🔵 [REDIRECT] Challenge type extracted:', challengeType);
+                    console.log('🔵 [REDIRECT] Challenge type comparison:', {
+                      value: challengeType,
+                      isFallingTiles: challengeType === 'falling_tiles',
+                      typeof: typeof challengeType,
+                      length: challengeType?.length,
+                    });
+
+                    const targetMode: UIMode =
+                      challengeType === 'falling_tiles' ? 'falling_notes' : 'replication_challenge';
+
+                    console.log('🔵 [REDIRECT] Target mode determined:', targetMode);
+                    console.log('🔵 [REDIRECT] Full redirect info:', {
+                      challengeType,
+                      targetMode,
+                      hasChallengeSettings: !!finalComposition.metadata.challengeSettings,
+                      challengeSettings: finalComposition.metadata.challengeSettings,
+                    });
+
+                    // Always add the composition to availableChallenges at the top
+                    // If it's a falling_tiles challenge, navigate directly to it
+                    console.log('🔵 [REDIRECT] Setting app state with mode:', targetMode);
+                    setAppState((prev) => {
+                      const newState = {
+                        ...prev,
+                        selectedChallenge: finalComposition,
+                        availableChallenges: [finalComposition, ...prev.availableChallenges],
+                        currentChallengeType: challengeType,
+                        mode: targetMode, // Navigate directly to the challenge mode
+                        isChallengeActive: false, // Reset to show start button
+                      };
+                      console.log('🔵 [REDIRECT] New app state:', {
+                        mode: newState.mode,
+                        currentChallengeType: newState.currentChallengeType,
+                        hasSelectedChallenge: !!newState.selectedChallenge,
+                      });
+                      return newState;
+                    });
+                    console.log('🔵 [REDIRECT] setAppState called successfully');
+                  } else {
+                    console.log(
+                      '🔵 No composition found in response, navigating to challenge_select'
+                    );
+                    // Fallback to challenge_select if composition not found
+                    setAppState((prev) => ({
+                      ...prev,
+                      mode: 'challenge_select',
+                    }));
+                  }
+                } else if (compositionResponse.status === 404) {
+                  // Try fetching as a chart (Chart Creator posts are stored as charts)
+                  console.log('🔵 Composition not found (404), trying to fetch as chart...');
+
+                  try {
+                    const chartResponse = await fetch(`/api/get-chart/${data.postId}`);
+
+                    if (chartResponse.ok) {
+                      const chartData = await chartResponse.json();
+                      console.log('🔵 Chart data received:', chartData);
+
+                      if (chartData.success && chartData.chart) {
+                        const chart = chartData.chart;
+
+                        // Convert ChartData to CompositionData for falling notes challenge
+                        const track: TrackData = {
+                          id: `chart_${chart.id}_track`,
+                          instrument: chart.instrument,
+                          notes: chart.notes.map((note: any) => ({
+                            note: note.lane,
+                            velocity: note.velocity || 0.8,
+                            startTime: note.time * 1000, // Convert seconds to milliseconds
+                            duration: 0.5,
+                          })),
+                          tempo: chart.bpm,
+                          duration: chart.duration,
+                          userId: chart.createdBy,
+                          timestamp: chart.createdAt,
+                        };
+
+                        const challengeMetadata = calculateChallengeMetadata(
+                          track,
+                          'falling_tiles',
+                          chart.difficulty === 'easy'
+                            ? 'easy'
+                            : chart.difficulty === 'medium'
+                              ? 'medium'
+                              : chart.difficulty === 'hard'
+                                ? 'hard'
+                                : 'auto'
+                        );
+
+                        const composition: CompositionData = {
+                          id: chart.id,
+                          layers: [track],
+                          metadata: {
+                            title: chart.title,
+                            collaborators: [chart.createdBy],
+                            createdAt: chart.createdAt,
+                            challengeSettings: {
+                              challengeType: 'falling_tiles',
+                              baseDifficulty: chart.difficulty as any,
+                              calculatedDifficulty: challengeMetadata.calculatedDifficulty,
+                              scoringWeights: challengeMetadata.scoringWeights,
+                              allowedAttempts: 3,
+                              timeLimit: Math.ceil(chart.duration),
+                              accuracyThreshold: 70,
+                              leaderboard: [],
+                            },
+                          },
+                        };
+
+                        console.log(
+                          '🔵 [REDIRECT] Converted chart to composition, navigating to falling_notes'
+                        );
+
+                        // Navigate directly to falling_notes mode
+                        setAppState((prev) => ({
+                          ...prev,
+                          selectedChallenge: composition,
+                          availableChallenges: [composition, ...prev.availableChallenges],
+                          currentChallengeType: 'falling_tiles',
+                          mode: 'falling_notes',
+                          isChallengeActive: false,
+                        }));
+
+                        return; // Exit early since we handled the chart
+                      }
+                    }
+                  } catch (chartError) {
+                    console.log('🔵 Failed to fetch chart:', chartError);
+                  }
+
+                  // Fallback to challenge_select if chart fetch also fails
+                  console.log(
+                    '🔵 Both composition and chart fetch failed, navigating to challenge_select'
+                  );
+                  setAppState((prev) => ({
+                    ...prev,
+                    mode: 'challenge_select',
+                  }));
+                } else {
+                  console.log(
+                    '🔵 Composition fetch failed with status:',
+                    compositionResponse.status,
+                    '- navigating to challenge_select'
+                  );
+                  // Fallback to challenge_select if fetch fails
+                  setAppState((prev) => ({
+                    ...prev,
+                    mode: 'challenge_select',
+                  }));
+                }
+              } catch (error) {
+                console.log(
+                  'Could not fetch composition data, navigating to challenge_select:',
+                  error
+                );
+                // Fallback to challenge_select if error occurs
+                setAppState((prev) => ({
+                  ...prev,
+                  mode: 'challenge_select',
+                }));
+              }
             }
-            // Otherwise stay on 'home' mode (default) - let user choose what to do
           }
         }
       } catch (err: unknown) {
@@ -1308,7 +2161,15 @@ export const App = () => {
 
   const handleModeChange = useCallback((newMode: UIMode) => {
     console.log('Mode changing to:', newMode);
-    setAppState((prev) => ({ ...prev, mode: newMode }));
+    setAppState((prev) => ({
+      ...prev,
+      mode: newMode,
+      showScoreSubmission: false, // Reset score submission when changing modes
+      challengeScore: null, // Clear any existing challenge score
+      jamSessionPostId: null, // Reset jam session state
+      jamSessionComposition: null,
+      jamCreationComposition: null, // Reset jam creation state
+    }));
     setError(null);
   }, []);
 
@@ -1336,10 +2197,10 @@ export const App = () => {
   }, []);
 
   const handleCompositionCreate = useCallback((composition: CompositionData) => {
-    // After creating a composition, switch to playback mode
+    // After creating a composition, switch to home mode
     setAppState((prev) => ({
       ...prev,
-      mode: 'playback',
+      mode: 'home',
       currentComposition: composition,
     }));
   }, []);
@@ -1347,15 +2208,34 @@ export const App = () => {
   // Challenge system handlers
   const handleChallengeSelect = useCallback(
     (challenge: CompositionData, challengeType: ChallengeType | 'both') => {
+      console.log('🔵 [handleChallengeSelect] Called:', {
+        challengeTitle: challenge.metadata.title,
+        challengeType,
+        challengeId: challenge.id,
+      });
       const finalChallengeType: ChallengeType =
         challengeType === 'both' ? 'falling_tiles' : challengeType;
 
-      setAppState((prev) => ({
-        ...prev,
-        selectedChallenge: challenge,
-        currentChallengeType: finalChallengeType,
-        mode: finalChallengeType === 'falling_tiles' ? 'falling_notes' : 'replication_challenge',
-      }));
+      console.log('🔵 [handleChallengeSelect] Final challenge type:', finalChallengeType);
+
+      const newMode: UIMode =
+        finalChallengeType === 'falling_tiles' ? 'falling_notes' : 'replication_challenge';
+      console.log('🔵 [handleChallengeSelect] Setting mode to:', newMode);
+
+      setAppState((prev) => {
+        const newState = {
+          ...prev,
+          selectedChallenge: challenge,
+          currentChallengeType: finalChallengeType,
+          mode: newMode,
+          isChallengeActive: false, // Reset to show start button
+        };
+        console.log('🔵 [handleChallengeSelect] New app state:', {
+          mode: newState.mode,
+          currentChallengeType: newState.currentChallengeType,
+        });
+        return newState;
+      });
     },
     []
   );
@@ -1364,7 +2244,160 @@ export const App = () => {
     setAppState((prev) => ({
       ...prev,
       challengeScore: score,
+      showScoreSubmission: true,
+    }));
+  }, []);
+
+  const handleScoreSubmission = useCallback(
+    async (submissionData: ChallengeScoreSubmissionData) => {
+      try {
+        const response = await fetch('/api/submit-challenge-score', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            postId: appState.currentPostId,
+            score: submissionData.score,
+            shareOptions: submissionData.shareOptions,
+            customMessage: submissionData.customMessage,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Score submitted successfully:', data);
+
+          // Move to results screen
+          setAppState((prev) => ({
+            ...prev,
+            showScoreSubmission: false,
+            mode: 'challenge_results',
+          }));
+        } else {
+          console.error('Failed to submit score:', response.status);
+          alert('Failed to submit score. Please try again.');
+        }
+      } catch (error) {
+        console.error('Error submitting score:', error);
+        alert('Network error while submitting score.');
+      }
+    },
+    [appState.currentPostId]
+  );
+
+  const handleSkipScoreSubmission = useCallback(() => {
+    // Just move to results without submitting
+    setAppState((prev) => ({
+      ...prev,
+      showScoreSubmission: false,
       mode: 'challenge_results',
+    }));
+  }, []);
+
+  // Jam session handlers
+  const handleStartJamSession = useCallback(
+    async (postId: string) => {
+      try {
+        // Fetch the composition for this post
+        const response = await fetch('/api/get-composition', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ postId }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.composition) {
+            // Check if current user already has a layer in this composition
+            const currentUser = appState.username;
+            const userAlreadyContributed = data.composition.layers.some(
+              (layer: TrackData) => layer.userId === currentUser
+            );
+
+            if (userAlreadyContributed) {
+              alert(
+                'You have already contributed to this jam session. Each user can only add one layer.'
+              );
+              return;
+            }
+
+            setAppState((prev) => ({
+              ...prev,
+              mode: 'jam_session',
+              jamSessionPostId: postId,
+              jamSessionComposition: data.composition,
+            }));
+          }
+        }
+      } catch (error) {
+        console.error('Error starting jam session:', error);
+        alert('Failed to start jam session');
+      }
+    },
+    [appState.username]
+  );
+
+  const handleJamReplySubmit = useCallback((success: boolean, message?: string) => {
+    if (success) {
+      alert(message || 'Jam reply posted successfully!');
+      setAppState((prev) => ({
+        ...prev,
+        mode: 'home',
+        jamSessionPostId: null,
+        jamSessionComposition: null,
+      }));
+    } else {
+      alert(message || 'Failed to post jam reply');
+    }
+  }, []);
+
+  const handleJamCancel = useCallback(() => {
+    setAppState((prev) => ({
+      ...prev,
+      mode: 'home',
+      jamSessionPostId: null,
+      jamSessionComposition: null,
+    }));
+  }, []);
+
+  // Jam creation handlers
+  const handleJamCreate = useCallback(async (trackData: TrackData, title: string) => {
+    try {
+      const response = await fetch('/api/create-riff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          trackData,
+          title: title || 'Jam Session',
+          challengeType: 'jam_session', // Mark as jam session
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          alert('Jam session created successfully! Others can now add their layers.');
+          setAppState((prev) => ({ ...prev, mode: 'home' }));
+        } else {
+          alert(`Failed: ${data.message}`);
+        }
+      } else {
+        alert('Network error while creating jam session');
+      }
+    } catch (error) {
+      console.error('Error creating jam session:', error);
+      alert('Failed to create jam session');
+    }
+  }, []);
+
+  const handleJamCreateCancel = useCallback(() => {
+    setAppState((prev) => ({
+      ...prev,
+      mode: 'home',
+      jamCreationComposition: null,
     }));
   }, []);
 
@@ -1372,6 +2405,7 @@ export const App = () => {
     setAppState((prev) => ({
       ...prev,
       challengeScore: null,
+      showScoreSubmission: false,
       mode:
         prev.currentChallengeType === 'falling_tiles' ? 'falling_notes' : 'replication_challenge',
     }));
@@ -1382,16 +2416,20 @@ export const App = () => {
       ...prev,
       selectedChallenge: null,
       challengeScore: null,
+      showScoreSubmission: false,
       mode: 'challenge_select',
     }));
   }, []);
 
   // Debug current app state
-  console.log('App: Current state:', {
+  console.log('🔵 [APP STATE] Current state:', {
     mode: appState.mode,
     hasSelectedChallenge: !!appState.selectedChallenge,
     hasCurrentPostId: !!appState.currentPostId,
     hasCurrentComposition: !!appState.currentComposition,
+    currentChallengeType: appState.currentChallengeType,
+    selectedChallengeTitle: appState.selectedChallenge?.metadata?.title,
+    selectedChallengeType: appState.selectedChallenge?.metadata?.challengeSettings?.challengeType,
   });
 
   // Splash Screen Component
@@ -1618,214 +2656,7 @@ export const App = () => {
 
               {/* Render current mode */}
               {/* Home Screen - Mode Selection */}
-              {appState.mode === 'home' && (
-                <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px 20px' }}>
-                  <div
-                    style={{
-                      background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
-                      borderRadius: '16px',
-                      padding: '48px',
-                      border: '4px solid #0f3460',
-                      boxShadow: '0 0 40px rgba(0, 212, 255, 0.4)',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <h1
-                      style={{
-                        color: '#00d4ff',
-                        fontSize: '48px',
-                        marginBottom: '16px',
-                        fontFamily: "'Press Start 2P', monospace",
-                        textShadow: '0 0 20px #00d4ff',
-                      }}
-                    >
-                      🎮 RIFFRIVALS
-                    </h1>
-                    <p
-                      style={{
-                        color: '#fff',
-                        fontSize: '14px',
-                        marginBottom: '48px',
-                        fontFamily: "'Press Start 2P', monospace",
-                      }}
-                    >
-                      RHYTHM BATTLES BUILT BY THE COMMUNITY
-                    </p>
-
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-                        gap: '24px',
-                        marginBottom: '32px',
-                      }}
-                    >
-                      {/* Create Replication Challenge */}
-                      <button
-                        onClick={() => setAppState((prev) => ({ ...prev, mode: 'create' }))}
-                        style={{
-                          padding: '32px',
-                          background: 'linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%)',
-                          border: '4px solid #000',
-                          borderRadius: '16px',
-                          cursor: 'pointer',
-                          transition: 'transform 0.2s',
-                          boxShadow: '0 8px 0 #000',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = 'translateY(-4px)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = 'translateY(0)';
-                        }}
-                      >
-                        <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎸</div>
-                        <h3
-                          style={{
-                            color: '#fff',
-                            fontSize: '16px',
-                            marginBottom: '12px',
-                            fontFamily: "'Press Start 2P', monospace",
-                          }}
-                        >
-                          CREATE MODE
-                        </h3>
-                        <p
-                          style={{
-                            color: '#fff',
-                            fontSize: '10px',
-                            lineHeight: '1.6',
-                            fontFamily: "'Press Start 2P', monospace",
-                          }}
-                        >
-                          Record a short musical loop. Others will try to replicate your rhythm!
-                        </p>
-                      </button>
-
-                      {/* Chart Creator Mode */}
-                      <button
-                        onClick={() => setAppState((prev) => ({ ...prev, mode: 'chart_creator' }))}
-                        style={{
-                          padding: '32px',
-                          background: 'linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%)',
-                          border: '4px solid #000',
-                          borderRadius: '16px',
-                          cursor: 'pointer',
-                          transition: 'transform 0.2s',
-                          boxShadow: '0 8px 0 #000',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = 'translateY(-4px)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = 'translateY(0)';
-                        }}
-                      >
-                        <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎼</div>
-                        <h3
-                          style={{
-                            color: '#fff',
-                            fontSize: '16px',
-                            marginBottom: '12px',
-                            fontFamily: "'Press Start 2P', monospace",
-                          }}
-                        >
-                          CHART CREATOR
-                        </h3>
-                        <p
-                          style={{
-                            color: '#fff',
-                            fontSize: '10px',
-                            lineHeight: '1.6',
-                            fontFamily: "'Press Start 2P', monospace",
-                          }}
-                        >
-                          Design your own Falling Tiles level like Beat Saber or Osu!
-                        </p>
-                      </button>
-
-                      {/* Browse Challenges */}
-                      <button
-                        onClick={() =>
-                          setAppState((prev) => ({ ...prev, mode: 'challenge_select' }))
-                        }
-                        style={{
-                          padding: '32px',
-                          background: 'linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%)',
-                          border: '4px solid #000',
-                          borderRadius: '16px',
-                          cursor: 'pointer',
-                          transition: 'transform 0.2s',
-                          boxShadow: '0 8px 0 #000',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = 'translateY(-4px)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = 'translateY(0)';
-                        }}
-                      >
-                        <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎮</div>
-                        <h3
-                          style={{
-                            color: '#fff',
-                            fontSize: '16px',
-                            marginBottom: '12px',
-                            fontFamily: "'Press Start 2P', monospace",
-                          }}
-                        >
-                          PLAY CHALLENGES
-                        </h3>
-                        <p
-                          style={{
-                            color: '#fff',
-                            fontSize: '10px',
-                            lineHeight: '1.6',
-                            fontFamily: "'Press Start 2P', monospace",
-                          }}
-                        >
-                          Browse and play community-created rhythm challenges!
-                        </p>
-                      </button>
-                    </div>
-
-                    <div
-                      style={{
-                        padding: '24px',
-                        background: '#0a0a0a',
-                        border: '2px solid #0f3460',
-                        borderRadius: '8px',
-                      }}
-                    >
-                      <h4
-                        style={{
-                          color: '#00d4ff',
-                          fontSize: '12px',
-                          marginBottom: '16px',
-                          fontFamily: "'Press Start 2P', monospace",
-                        }}
-                      >
-                        HOW IT WORKS:
-                      </h4>
-                      <ul
-                        style={{
-                          color: '#fff',
-                          fontSize: '10px',
-                          lineHeight: '2',
-                          textAlign: 'left',
-                          listStyle: 'none',
-                          padding: 0,
-                        }}
-                      >
-                        <li>✅ Create challenges by recording OR designing levels</li>
-                        <li>✅ Others attempt your challenges and compete for high scores</li>
-                        <li>✅ Every challenge is a Reddit post - vote for the best!</li>
-                        <li>✅ Remix existing challenges with your own twist</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {appState.mode === 'home' && <RetroHomeScreen setAppState={setAppState} />}
 
               {/* Create Mode - Simplified Single Track Recording */}
               {appState.mode === 'create' && (
@@ -1933,7 +2764,7 @@ export const App = () => {
                     onCancel={() =>
                       setAppState((prev) => ({
                         ...prev,
-                        mode: 'playback',
+                        mode: 'home',
                         remixParentPostId: null,
                       }))
                     }
@@ -1945,7 +2776,8 @@ export const App = () => {
                 <ChallengeSelector
                   challenges={appState.availableChallenges}
                   onChallengeSelect={handleChallengeSelect}
-                  onBack={() => handleModeChange('create')}
+                  onBack={() => handleModeChange('home')}
+                  preSelectedChallenge={appState.selectedChallenge}
                 />
               )}
 
@@ -1957,8 +2789,67 @@ export const App = () => {
                     'selectedChallenge:',
                     appState.selectedChallenge
                   )}
+
+                  {/* Challenge Info Header */}
+                  <div
+                    style={{
+                      textAlign: 'center',
+                      marginBottom: '20px',
+                      padding: '20px',
+                      background: 'rgba(0, 0, 0, 0.5)',
+                      borderRadius: '8px',
+                      border: '2px solid #4ecdc4',
+                    }}
+                  >
+                    <h2
+                      style={{
+                        color: '#4ecdc4',
+                        fontSize: '24px',
+                        marginBottom: '10px',
+                        fontFamily: "'Press Start 2P', monospace",
+                      }}
+                    >
+                      {appState.selectedChallenge.metadata.title || 'Falling Tiles Challenge'}
+                    </h2>
+                    <p style={{ color: '#aaa', fontSize: '12px', marginBottom: '20px' }}>
+                      {appState.selectedChallenge.layers[appState.selectedLayerIndex]?.instrument ||
+                        'drums'}{' '}
+                      • Difficulty: medium
+                    </p>
+
+                    {!appState.isChallengeActive && (
+                      <button
+                        onClick={() => {
+                          playButtonClick();
+                          setAppState((prev) => ({ ...prev, isChallengeActive: true }));
+                        }}
+                        style={{
+                          padding: '16px 32px',
+                          background: 'linear-gradient(180deg, #00ff00 0%, #00cc00 100%)',
+                          color: '#000',
+                          border: '4px solid #000',
+                          borderRadius: '8px',
+                          fontSize: '16px',
+                          fontWeight: 'bold',
+                          fontFamily: "'Press Start 2P', monospace",
+                          cursor: 'pointer',
+                          textShadow: '1px 1px 0 #fff',
+                          boxShadow: '0 4px 0 #006600, 0 0 20px rgba(0, 255, 0, 0.5)',
+                        }}
+                      >
+                        ▶ START CHALLENGE
+                      </button>
+                    )}
+
+                    {appState.isChallengeActive && (
+                      <div style={{ color: '#00ff00', fontSize: '12px' }}>
+                        Challenge in progress...
+                      </div>
+                    )}
+                  </div>
+
                   {/* Layer/Instrument Selector */}
-                  {appState.selectedChallenge.layers.length > 1 && (
+                  {!appState.isChallengeActive && appState.selectedChallenge.layers.length > 1 && (
                     <div
                       style={{
                         display: 'flex',
@@ -2053,8 +2944,9 @@ export const App = () => {
                       // Score updates handled internally
                     }}
                     difficulty="medium"
-                    isActive={true}
+                    isActive={appState.isChallengeActive}
                     onComplete={() => {
+                      setAppState((prev) => ({ ...prev, isChallengeActive: false }));
                       // Challenge completed
                     }}
                     songPattern={
@@ -2173,34 +3065,89 @@ export const App = () => {
                   </div>
                 )}
 
+              {/* Score Submission Interface */}
+              {appState.showScoreSubmission &&
+                appState.challengeScore &&
+                appState.mode !== 'home' && (
+                  <ChallengeScoreSubmission
+                    score={appState.challengeScore}
+                    onSubmit={handleScoreSubmission}
+                    onSkip={handleSkipScoreSubmission}
+                    challengeTitle={appState.selectedChallenge?.metadata.title || 'Challenge'}
+                  />
+                )}
+
+              {/* Challenge Results */}
               {appState.mode === 'challenge_results' && appState.challengeScore && (
-                <ChallengeResults
-                  score={appState.challengeScore}
-                  onRetry={handleChallengeRetry}
-                  onShare={() => {
-                    // Handle share functionality
-                  }}
-                  onBackToMenu={handleChallengeBackToMenu}
-                  personalBest={
-                    appState.personalBest || {
-                      userId: 'current_user',
-                      accuracy: 0,
-                      timing: 0,
-                      timingScore: 0,
-                      accuracyScore: 0,
-                      combinedScore: 0,
-                      perfectHits: 0,
-                      greatHits: 0,
-                      goodHits: 0,
-                      missedNotes: 0,
-                      completedAt: Date.now(),
-                      originalTrackId: '',
-                      challengeType: 'falling_tiles',
+                <div>
+                  <ChallengeResults
+                    score={appState.challengeScore}
+                    onRetry={handleChallengeRetry}
+                    onShare={() => {
+                      // Handle share functionality - could reopen score submission
+                      setAppState((prev) => ({
+                        ...prev,
+                        showScoreSubmission: true,
+                        mode: 'challenge_select',
+                      }));
+                    }}
+                    onBackToMenu={handleChallengeBackToMenu}
+                    personalBest={
+                      appState.personalBest || {
+                        userId: 'current_user',
+                        accuracy: 0,
+                        timing: 0,
+                        timingScore: 0,
+                        accuracyScore: 0,
+                        combinedScore: 0,
+                        perfectHits: 0,
+                        greatHits: 0,
+                        goodHits: 0,
+                        missedNotes: 0,
+                        completedAt: Date.now(),
+                        originalTrackId: '',
+                        challengeType: 'falling_tiles',
+                      }
                     }
-                  }
-                  leaderboardPosition={1} // This would be calculated from leaderboard
+                    leaderboardPosition={1} // This would be calculated from leaderboard
+                  />
+
+                  {/* Challenge Analytics */}
+                  {appState.currentPostId && (
+                    <div style={{ marginTop: '20px' }}>
+                      <ChallengeAnalytics
+                        postId={appState.currentPostId}
+                        challengeTitle={appState.selectedChallenge?.metadata.title || 'Challenge'}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Jam Creation Mode */}
+              {appState.mode === 'jam_create' && (
+                <SimplifiedCreateMode
+                  onTrackCreate={handleJamCreate}
+                  onCancel={handleJamCreateCancel}
+                  title="Create Jam Session"
+                  description="Record the first track of a collaborative jam session. Others will be able to add their own layers!"
+                  buttonText="🎵 START JAM SESSION"
                 />
               )}
+
+              {/* Jam Session Mode (Adding to existing) */}
+              {appState.mode === 'jam_session' &&
+                appState.jamSessionComposition &&
+                appState.jamSessionPostId && (
+                  <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
+                    <JamReply
+                      parentComposition={appState.jamSessionComposition}
+                      parentPostId={appState.jamSessionPostId}
+                      onReplySubmit={handleJamReplySubmit}
+                      onCancel={handleJamCancel}
+                    />
+                  </div>
+                )}
             </main>
 
             {/* Footer */}

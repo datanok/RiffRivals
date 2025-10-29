@@ -6,7 +6,7 @@ export type DrumType = 'kick' | 'snare' | 'hihat' | 'openhat' | 'crash' | 'ride'
 
 export type BassString = 'E' | 'A' | 'D' | 'G'; // Deprecated - kept for backward compatibility
 
-export type ChallengeType = 'replication' | 'falling_tiles';
+export type ChallengeType = 'replication' | 'falling_tiles' | 'jam_session';
 
 export type ChallengeDifficulty = 'easy' | 'medium' | 'hard' | 'auto';
 

@@ -74,6 +74,7 @@ export const JamReply: React.FC<JamReplyProps> = ({
     try {
       // Create combined composition with parent tracks + new track
       const combinedComposition: CompositionData = {
+        ...parentComposition,
         layers: [...parentComposition.layers, newTrackData],
         metadata: {
           ...parentComposition.metadata,
@@ -176,49 +177,112 @@ export const JamReply: React.FC<JamReplyProps> = ({
     : parentComposition.layers;
 
   return (
-    <div className="flex flex-col gap-6 p-6 bg-white rounded-lg border shadow-sm">
-      {/* Header */}
-      <div className="flex flex-col gap-2">
-        <h2 className="text-2xl font-bold text-gray-900">
-          Jam on "{parentComposition.metadata.title || 'Untitled Riff'}"
+    <div
+      style={{
+        maxWidth: '900px',
+        margin: '0 auto',
+        padding: '20px',
+        background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+        borderRadius: '12px',
+        border: '3px solid #0f3460',
+        boxShadow: '0 0 30px rgba(0, 212, 255, 0.3)',
+      }}
+    >
+      {/* Compact Header */}
+      <div style={{ marginBottom: '24px', textAlign: 'center' }}>
+        <h2
+          style={{
+            color: '#00d4ff',
+            fontSize: '24px',
+            marginBottom: '8px',
+            fontFamily: "'Press Start 2P', monospace",
+            textShadow: '0 0 10px #00d4ff',
+          }}
+        >
+          🎵 ADD YOUR LAYER
         </h2>
-        <p className="text-gray-600">
-          Add your own musical layer to this composition. Your recording will be layered with the
-          original tracks.
+        <p
+          style={{
+            color: '#aaa',
+            fontSize: '12px',
+            fontFamily: 'monospace',
+          }}
+        >
+          Collaborate on: {parentComposition.metadata.title || 'Untitled'}
         </p>
       </div>
 
-      {/* Parent Composition Preview */}
-      <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-gray-800">Original Tracks</h3>
-        <div className="grid gap-2">
-          {parentComposition.layers.map((track, index) => (
-            <div key={track.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded border">
-              <span className="text-lg">{getInstrumentIcon(track.instrument)}</span>
-              <div className="flex-1">
-                <span className="font-medium capitalize text-gray-900">{track.instrument}</span>
-                <span className="text-sm text-gray-500 ml-2">
-                  {track.notes.length} notes • {formatDuration(track.duration)}
-                </span>
-              </div>
+      {/* Existing Layers - Compact */}
+      <div
+        style={{
+          background: 'rgba(0,0,0,0.3)',
+          padding: '16px',
+          borderRadius: '8px',
+          marginBottom: '20px',
+          border: '2px solid #0f3460',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '12px',
+          }}
+        >
+          <span
+            style={{
+              color: '#00d4ff',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              fontFamily: 'monospace',
+            }}
+          >
+            EXISTING LAYERS ({parentComposition.layers.length})
+          </span>
+          <PlaybackEngine
+            tracks={parentComposition.layers}
+            onPlaybackStateChange={handlePlaybackStateChange}
+            visualFeedback={false}
+          />
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          {parentComposition.layers.map((track) => (
+            <div
+              key={track.id}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 12px',
+                background: 'rgba(78, 205, 196, 0.2)',
+                border: '1px solid #4ecdc4',
+                borderRadius: '16px',
+                color: '#4ecdc4',
+                fontSize: '11px',
+                fontFamily: 'monospace',
+              }}
+            >
+              <span>{getInstrumentIcon(track.instrument)}</span>
+              <span>{track.instrument.toUpperCase()}</span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Parent Playback */}
-      <div className="space-y-2">
-        <h3 className="text-lg font-semibold text-gray-800">Listen to Original</h3>
-        <PlaybackEngine
-          tracks={parentComposition.layers}
-          onPlaybackStateChange={handlePlaybackStateChange}
-          visualFeedback={true}
-        />
-      </div>
-
-      {/* Instrument Selection */}
-      <div className="space-y-3">
-        <h3 className="text-lg font-semibold text-gray-800">Choose Your Instrument</h3>
+      {/* Instrument Selection - Inline */}
+      <div style={{ marginBottom: '20px' }}>
+        <div
+          style={{
+            color: '#00d4ff',
+            fontSize: '12px',
+            fontWeight: 'bold',
+            marginBottom: '8px',
+            fontFamily: 'monospace',
+          }}
+        >
+          YOUR INSTRUMENT:
+        </div>
         <InstrumentSelector
           selectedInstrument={selectedInstrument}
           onInstrumentChange={handleInstrumentChange}
@@ -226,12 +290,18 @@ export const JamReply: React.FC<JamReplyProps> = ({
         />
       </div>
 
-      {/* Recording Interface */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-800">Record Your Part</h3>
-
+      {/* Recording Interface - Compact */}
+      <div
+        style={{
+          background: 'rgba(0,0,0,0.3)',
+          padding: '16px',
+          borderRadius: '8px',
+          marginBottom: '20px',
+          border: '2px solid #0f3460',
+        }}
+      >
         {/* Instrument Interface */}
-        <div className="p-4 bg-gray-50 rounded-lg border">{renderInstrumentInterface()}</div>
+        <div style={{ marginBottom: '16px' }}>{renderInstrumentInterface()}</div>
 
         {/* Audio Recorder */}
         <AudioRecorder
@@ -241,95 +311,148 @@ export const JamReply: React.FC<JamReplyProps> = ({
           disabled={isPlayingParent}
         />
 
-        {/* Recording Status */}
+        {/* Recording Status - Minimal */}
         {recordingState === 'recording' && (
-          <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded">
-            <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-            <span className="text-red-700 font-medium">Recording in progress...</span>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '12px',
+              background: 'rgba(255, 0, 0, 0.2)',
+              border: '2px solid #ff0064',
+              borderRadius: '4px',
+              marginTop: '12px',
+            }}
+          >
+            <div
+              style={{
+                width: '10px',
+                height: '10px',
+                background: '#ff0064',
+                borderRadius: '50%',
+                animation: 'pulse 1s infinite',
+              }}
+            ></div>
+            <span style={{ color: '#ff0064', fontWeight: 'bold', fontFamily: 'monospace' }}>
+              ⏺ RECORDING...
+            </span>
           </div>
         )}
 
         {recordingState === 'recorded' && newTrackData && (
-          <div className="p-3 bg-green-50 border border-green-200 rounded">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <span className="text-green-700 font-medium">Recording complete!</span>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '12px',
+              background: 'rgba(0, 255, 0, 0.2)',
+              border: '2px solid #00ff00',
+              borderRadius: '4px',
+              marginTop: '12px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ color: '#00ff00', fontSize: '18px' }}>✓</span>
+              <span style={{ color: '#00ff00', fontWeight: 'bold', fontFamily: 'monospace' }}>
+                {newTrackData.notes.length} NOTES • {formatDuration(newTrackData.duration)}
+              </span>
             </div>
-            <div className="text-sm text-green-600">
-              Recorded {newTrackData.notes.length} notes • {formatDuration(newTrackData.duration)}
-            </div>
+            <PlaybackEngine
+              tracks={previewTracks}
+              onPlaybackStateChange={() => {}}
+              visualFeedback={false}
+            />
           </div>
         )}
       </div>
 
-      {/* Preview Combined Composition */}
-      {newTrackData && (
-        <div className="space-y-3">
-          <h3 className="text-lg font-semibold text-gray-800">Preview Combined Composition</h3>
-          <PlaybackEngine
-            tracks={previewTracks}
-            onPlaybackStateChange={() => {}}
-            visualFeedback={true}
-          />
-        </div>
-      )}
-
-      {/* Error Display */}
+      {/* Error Display - Minimal */}
       {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded">
-          <div className="flex items-center gap-2">
-            <span className="text-red-500">⚠️</span>
-            <span className="text-red-700">{error}</span>
+        <div
+          style={{
+            padding: '12px',
+            background: 'rgba(255, 0, 0, 0.2)',
+            border: '2px solid #ff0064',
+            borderRadius: '4px',
+            marginBottom: '20px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ color: '#ff0064', fontSize: '18px' }}>⚠️</span>
+            <span style={{ color: '#ff0064', fontWeight: 'bold', fontFamily: 'monospace' }}>
+              {error}
+            </span>
           </div>
         </div>
       )}
 
-      {/* Action Buttons */}
-      <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
+      {/* Actions - Clean */}
+      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
         <button
           onClick={onCancel}
           disabled={recordingState === 'submitting'}
-          className={`
-            flex-1 px-6 py-3 rounded-lg font-medium transition-colors
-            ${
-              recordingState === 'submitting'
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-gray-500 text-white hover:bg-gray-600'
-            }
-          `}
+          style={{
+            padding: '12px 24px',
+            borderRadius: '8px',
+            border: '3px solid #666',
+            background: recordingState === 'submitting' ? '#333' : '#444',
+            color: recordingState === 'submitting' ? '#666' : '#fff',
+            fontWeight: 'bold',
+            cursor: recordingState === 'submitting' ? 'not-allowed' : 'pointer',
+            fontSize: '14px',
+            fontFamily: 'monospace',
+          }}
         >
-          Cancel
+          ← BACK
         </button>
 
         {recordingState === 'recorded' && (
           <button
             onClick={handleStopRecording}
-            className="flex-1 px-6 py-3 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition-colors"
+            style={{
+              padding: '12px 24px',
+              borderRadius: '8px',
+              border: '3px solid #000',
+              background: 'linear-gradient(45deg, #ff6600, #ff8800)',
+              color: '#fff',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontFamily: 'monospace',
+              boxShadow: '0 4px 0 #000, 0 0 20px rgba(255, 102, 0, 0.5)',
+            }}
           >
-            Record Again
+            🔄 RECORD AGAIN
           </button>
         )}
 
         <button
           onClick={handleSubmitReply}
           disabled={!newTrackData || recordingState === 'submitting'}
-          className={`
-            flex-1 px-6 py-3 rounded-lg font-medium transition-colors
-            ${
+          style={{
+            flex: 1,
+            minWidth: '200px',
+            padding: '12px 24px',
+            borderRadius: '8px',
+            border: '3px solid #000',
+            background:
               !newTrackData || recordingState === 'submitting'
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-blue-500 text-white hover:bg-blue-600'
-            }
-          `}
+                ? '#666'
+                : 'linear-gradient(45deg, #4ecdc4, #44a08d)',
+            color: !newTrackData || recordingState === 'submitting' ? '#333' : '#fff',
+            fontWeight: 'bold',
+            cursor: !newTrackData || recordingState === 'submitting' ? 'not-allowed' : 'pointer',
+            fontSize: '14px',
+            fontFamily: 'monospace',
+            boxShadow:
+              !newTrackData || recordingState === 'submitting'
+                ? 'none'
+                : '0 4px 0 #000, 0 0 20px rgba(78, 205, 196, 0.5)',
+          }}
         >
-          {recordingState === 'submitting' ? (
-            <div className="flex items-center justify-center gap-2">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              Posting...
-            </div>
-          ) : (
-            'Post Jam Reply'
-          )}
+          {recordingState === 'submitting' ? '⏳ POSTING...' : '🚀 ADD TO COLLABORATION'}
         </button>
       </div>
     </div>

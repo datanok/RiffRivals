@@ -44,6 +44,8 @@ import {
   storeChallengeScore,
   getChallengeScores,
   getLeaderboard,
+  getChallengeAnalytics,
+  getUserPersonalBest,
   storeChart,
   getChart,
   getCharts,
@@ -170,61 +172,126 @@ router.post<{}, CreateRiffResponse | ApiErrorResponse, CreateRiffRequest>(
       }
 
       // Generate post content
-      const postTitle = generateRiffTitle(trackData, title);
+      const postTitle =
+        challengeType === 'jam_session'
+          ? title
+            ? `🎵 ${title}`
+            : `🎵 Jam Session - ${trackData.instrument.charAt(0).toUpperCase() + trackData.instrument.slice(1)}`
+          : generateRiffTitle(trackData, title);
       const preview = generateRiffPreview(trackData);
 
       // Create composition metadata
       const composition = generateCompositionMetadata(trackData, username);
 
-      // Update challenge settings
-      composition.metadata.challengeSettings = {
-        challengeType,
-        baseDifficulty: 'auto',
-        calculatedDifficulty: 0,
-        scoringWeights:
-          challengeType === 'replication'
-            ? { timing: 0.3, accuracy: 0.7 }
-            : { timing: 0.7, accuracy: 0.3 },
-        allowedAttempts: challengeSettings?.allowedAttempts || 3,
-        timeLimit: challengeSettings?.timeLimit || Math.ceil(trackData.duration),
-        accuracyThreshold: challengeSettings?.accuracyThreshold || 70,
-        leaderboard: [],
-      };
+      // Handle jam sessions vs challenges differently
+      let post;
 
-      // Create custom post with splash screen and embedded data
-      const post = await reddit.submitCustomPost({
-        subredditName: context.subredditName!,
-        title: postTitle,
-        splash: {
-          appDisplayName: 'RiffRivals',
-          backgroundUri: 'splash.png',
-          heading: `Replication Challenge by u/${username}`,
-          buttonLabel: 'Play Challenge',
-          description: preview,
-        },
-        textFallback: {
-          text: `${preview}\n\n*This is a RiffRivals replication challenge. Click to play!*`,
-        },
-        postData: {
-          type: 'replication',
-          compositionId: composition.id,
-          trackId: trackData.id,
-          instrument: trackData.instrument,
-          noteCount: trackData.notes.length,
-          duration: trackData.duration,
-          createdBy: username,
-          createdAt: Date.now(),
+      if (challengeType === 'jam_session') {
+        // Jam sessions don't need challenge settings
+        delete composition.metadata.challengeSettings;
+
+        // Create jam session post
+        post = await reddit.submitCustomPost({
+          subredditName: context.subredditName!,
+          title: postTitle,
+          splash: {
+            appDisplayName: 'RiffRivals',
+            backgroundUri: 'splash.png',
+            heading: `🎵 Jam Session by u/${username}`,
+            buttonLabel: 'Join Jam Session',
+            description: `${preview}\n\n🎤 Collaborative jam session - add your own layer!`,
+            appIconUri: 'default-icon.png',
+          },
+          textFallback: {
+            text: `${preview}\n\n*This is a RiffRivals jam session. Click to add your layer!*`,
+          },
+          postData: {
+            type: 'jam_session',
+            compositionId: composition.id,
+            trackId: trackData.id,
+            instrument: trackData.instrument,
+            noteCount: trackData.notes.length,
+            duration: trackData.duration,
+            createdBy: username,
+            createdAt: Date.now(),
+            challengeType,
+          },
+        });
+      } else {
+        // Update challenge settings for actual challenges
+        composition.metadata.challengeSettings = {
           challengeType,
-        },
-      });
+          baseDifficulty: 'auto',
+          calculatedDifficulty: 0,
+          scoringWeights:
+            challengeType === 'replication'
+              ? { timing: 0.3, accuracy: 0.7 }
+              : { timing: 0.7, accuracy: 0.3 },
+          allowedAttempts: challengeSettings?.allowedAttempts || 3,
+          timeLimit: challengeSettings?.timeLimit || Math.ceil(trackData.duration),
+          accuracyThreshold: challengeSettings?.accuracyThreshold || 70,
+          leaderboard: [],
+        };
+
+        // Create challenge post
+        post = await reddit.submitCustomPost({
+          subredditName: context.subredditName!,
+          title: postTitle,
+          splash: {
+            appDisplayName: 'RiffRivals',
+            backgroundUri: 'splash.png',
+            heading: `Replication Challenge by u/${username}`,
+            buttonLabel: 'Play Challenge',
+            description: preview,
+            appIconUri: 'default-icon.png',
+          },
+          textFallback: {
+            text: `${preview}\n\n*This is a RiffRivals replication challenge. Click to play!*`,
+          },
+          postData: {
+            type: 'replication',
+            compositionId: composition.id,
+            trackId: trackData.id,
+            instrument: trackData.instrument,
+            noteCount: trackData.notes.length,
+            duration: trackData.duration,
+            createdBy: username,
+            createdAt: Date.now(),
+            challengeType,
+          },
+        });
+      }
 
       // Store composition data in Redis
+      console.log(
+        `🔵 [SERVER] Storing composition for postId: ${post.id}, challengeType: ${challengeType}`
+      );
       await storeComposition(post.id, composition);
+      console.log(`🔵 [SERVER] Composition stored successfully for postId: ${post.id}`);
+
+      // If this is a jam session, add it to the jam sessions index
+      if (challengeType === 'jam_session') {
+        const jamSessionMetadata = {
+          title: title || 'Untitled Jam Session',
+          collaborators: [username],
+          layerCount: 1,
+          createdAt: Date.now(),
+        };
+
+        await redis.hSet('jam_sessions_index', {
+          [post.id]: JSON.stringify(jamSessionMetadata),
+        });
+
+        console.log(`🔵 [SERVER] Added jam session to index: ${post.id}`);
+      }
 
       res.json({
         postId: post.id,
         success: true,
-        message: 'Challenge created successfully',
+        message:
+          challengeType === 'jam_session'
+            ? 'Jam session created successfully'
+            : 'Challenge created successfully',
       });
     } catch (error) {
       console.error('Error creating riff post:', error);
@@ -264,6 +331,23 @@ router.post<{}, CreateJamReplyResponse | ApiErrorResponse, CreateJamReplyRequest
         return;
       }
 
+      // Get the original composition to check if user already contributed
+      const originalComposition = await getComposition(parentPostId);
+      if (originalComposition) {
+        const userAlreadyContributed = originalComposition.layers.some(
+          (layer) => layer.userId === username
+        );
+
+        if (userAlreadyContributed) {
+          res.status(400).json({
+            success: false,
+            message:
+              'You have already contributed to this jam session. Each user can only add one layer.',
+          });
+          return;
+        }
+      }
+
       // Generate comment text
       const commentText = generateJamReplyText(newTrackData);
 
@@ -276,6 +360,20 @@ router.post<{}, CreateJamReplyResponse | ApiErrorResponse, CreateJamReplyRequest
 
       // Store combined composition data in Redis
       await storeJamReply(comment.id, combinedComposition);
+
+      // Update jam sessions index since this is now a multi-layer composition
+      if (combinedComposition.layers.length > 1) {
+        const jamSessionMetadata = {
+          title: combinedComposition.metadata.title || 'Untitled Jam Session',
+          collaborators: combinedComposition.metadata.collaborators || [],
+          layerCount: combinedComposition.layers.length,
+          createdAt: combinedComposition.metadata.createdAt || Date.now(),
+        };
+
+        await redis.hSet('jam_sessions_index', {
+          [parentPostId]: JSON.stringify(jamSessionMetadata),
+        });
+      }
 
       res.json({
         commentId: comment.id,
@@ -310,9 +408,11 @@ router.post<{}, GetCompositionResponse | ApiErrorResponse>(
         return;
       }
 
+      console.log(`🔵 [SERVER] Fetching composition for postId: ${postId}`);
       const composition = await getComposition(postId);
 
       if (!composition) {
+        console.log(`🔵 [SERVER] Composition NOT FOUND for postId: ${postId}`);
         res.status(404).json({
           success: false,
           message: 'Composition not found',
@@ -320,9 +420,18 @@ router.post<{}, GetCompositionResponse | ApiErrorResponse>(
         return;
       }
 
+      // Check if this is a jam session by looking at the jam sessions index
+      const jamSessionsIndex = await redis.hGetAll('jam_sessions_index');
+      const isJamSession = jamSessionsIndex && jamSessionsIndex[postId];
+
+      console.log(
+        `🔵 [SERVER] Composition found for postId: ${postId}, challengeType: ${composition.metadata.challengeSettings?.challengeType}, isJamSession: ${!!isJamSession}`
+      );
+
       res.json({
         composition,
         success: true,
+        isJamSession: !!isJamSession,
       });
     } catch (error) {
       console.error('Error retrieving composition:', error);
@@ -398,46 +507,89 @@ router.get<{}, GetThreadCompositionResponse | ApiErrorResponse>(
 );
 
 /**
- * Submit challenge score as a comment reply
+ * Submit challenge score with enhanced privacy options
  */
-router.post<{}, SubmitChallengeScoreResponse | ApiErrorResponse, SubmitChallengeScoreRequest>(
-  '/api/submit-challenge-score',
-  async (req, res): Promise<void> => {
-    try {
-      const { postId, score } = req.body;
+router.post<
+  {},
+  SubmitChallengeScoreResponse | ApiErrorResponse,
+  SubmitChallengeScoreRequest & {
+    shareOptions?: {
+      shareFullScore: boolean;
+      shareAccuracy: boolean;
+      shareTiming: boolean;
+      shareCompletion: boolean;
+      sharePersonalBest: boolean;
+      makePublicComment: boolean;
+    };
+    customMessage?: string;
+  }
+>('/api/submit-challenge-score', async (req, res): Promise<void> => {
+  try {
+    const { postId, score, shareOptions, customMessage } = req.body;
 
-      if (!postId || !score) {
-        res.status(400).json({
-          success: false,
-          message: 'postId and score are required',
-        });
-        return;
+    if (!postId || !score) {
+      res.status(400).json({
+        success: false,
+        message: 'postId and score are required',
+      });
+      return;
+    }
+
+    // Get current user
+    const username = await reddit.getCurrentUsername();
+    if (!username) {
+      res.status(401).json({
+        success: false,
+        message: 'User authentication required',
+      });
+      return;
+    }
+
+    // Update score with current user
+    const updatedScore = {
+      ...score,
+      userId: username,
+    };
+
+    let commentId: string | undefined;
+
+    // Create public comment if user opted to share
+    if (shareOptions?.makePublicComment) {
+      // Generate comment text based on share options
+      let scoreText = `🏆 **Challenge Complete by u/${username}**\n\n`;
+
+      if (customMessage) {
+        scoreText += `*"${customMessage}"*\n\n`;
       }
 
-      // Get current user
-      const username = await reddit.getCurrentUsername();
-      if (!username) {
-        res.status(401).json({
-          success: false,
-          message: 'User authentication required',
-        });
-        return;
+      if (shareOptions.shareFullScore) {
+        scoreText +=
+          `**Overall Score:** ${score.accuracy.toFixed(1)}% (Grade: ${getScoreGrade(score.accuracy)})\n` +
+          `**Note Accuracy:** ${score.accuracy.toFixed(1)}%\n` +
+          `**Timing Precision:** ${score.timing.toFixed(1)}%\n` +
+          `**Perfect:** ${score.perfectHits} | **Great:** ${score.greatHits} | **Good:** ${score.goodHits} | **Miss:** ${score.missedNotes}\n\n`;
+      } else {
+        if (shareOptions.shareAccuracy) {
+          scoreText += `**Accuracy:** ${score.accuracy.toFixed(1)}%\n`;
+        }
+        if (shareOptions.shareTiming) {
+          scoreText += `**Timing:** ${score.timing.toFixed(1)}%\n`;
+        }
+        if (shareOptions.shareCompletion) {
+          scoreText += `✅ **Challenge Completed by u/${username}!**\n`;
+        }
+        scoreText += '\n';
       }
 
-      // Update score with current user
-      const updatedScore = {
-        ...score,
-        userId: username,
-      };
+      if (shareOptions.sharePersonalBest) {
+        const personalBest = await getUserPersonalBest(postId, username);
+        if (personalBest && personalBest.accuracy < score.accuracy) {
+          scoreText += `🎉 **New Personal Best for u/${username}!** (Previous: ${personalBest.accuracy.toFixed(1)}%)\n\n`;
+        }
+      }
 
-      // Generate enhanced score comment text
-      const scoreText =
-        `🏆 **Challenge Score**\n\n` +
-        `**Overall Score:** ${score.accuracy}% (Grade: ${getScoreGrade(score.accuracy)})\n` +
-        `**Note Accuracy:** ${score.accuracy}%\n` +
-        `**Timing Precision:** ${score.timing}%\n\n` +
-        `*Completed on ${new Date(score.completedAt).toLocaleDateString()} at ${new Date(score.completedAt).toLocaleTimeString()}*\n\n` +
-        `*Challenge yourself and see if you can beat this score!*`;
+      scoreText += `*Completed by u/${username} on ${new Date(score.completedAt).toLocaleDateString()}*\n\n`;
+      scoreText += `*Think you can beat u/${username}'s score? Give it a try!*`;
 
       // Create Reddit comment
       const formattedPostId = postId.startsWith('t3_') ? postId : `t3_${postId}`;
@@ -445,25 +597,106 @@ router.post<{}, SubmitChallengeScoreResponse | ApiErrorResponse, SubmitChallenge
         id: formattedPostId as `t3_${string}`,
         text: scoreText,
       });
+      commentId = comment.id;
+    }
 
-      // Store score data in Redis for leaderboards
-      await storeChallengeScore(postId, username, updatedScore);
+    // Store score data in Redis with privacy options
+    await storeChallengeScore(postId, username, updatedScore, shareOptions);
+
+    res.json({
+      success: true,
+      message: shareOptions?.makePublicComment
+        ? 'Challenge score shared successfully'
+        : 'Challenge score saved privately',
+      commentId,
+    });
+  } catch (error) {
+    console.error('Error submitting challenge score:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to submit challenge score',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * Get challenge analytics
+ */
+router.get<{ postId: string }, { analytics: any; success: boolean } | ApiErrorResponse>(
+  '/api/challenge-analytics/:postId',
+  async (req, res): Promise<void> => {
+    try {
+      const { postId } = req.params;
+
+      if (!postId) {
+        res.status(400).json({
+          success: false,
+          message: 'postId is required',
+        });
+        return;
+      }
+
+      const analytics = await getChallengeAnalytics(postId);
 
       res.json({
+        analytics,
         success: true,
-        message: 'Challenge score submitted successfully',
-        commentId: comment.id,
       });
     } catch (error) {
-      console.error('Error submitting challenge score:', error);
+      console.error('Error retrieving challenge analytics:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to submit challenge score',
+        message: 'Failed to retrieve challenge analytics',
         error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
 );
+
+/**
+ * Get user's personal best
+ */
+router.get<
+  { postId: string; userId: string },
+  { personalBest: any; success: boolean } | ApiErrorResponse
+>('/api/personal-best/:postId/:userId', async (req, res): Promise<void> => {
+  try {
+    const { postId, userId } = req.params;
+
+    if (!postId || !userId) {
+      res.status(400).json({
+        success: false,
+        message: 'postId and userId are required',
+      });
+      return;
+    }
+
+    // Only allow users to see their own personal best
+    const currentUser = await reddit.getCurrentUsername();
+    if (currentUser !== userId) {
+      res.status(403).json({
+        success: false,
+        message: 'You can only view your own personal best',
+      });
+      return;
+    }
+
+    const personalBest = await getUserPersonalBest(postId, userId);
+
+    res.json({
+      personalBest,
+      success: true,
+    });
+  } catch (error) {
+    console.error('Error retrieving personal best:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve personal best',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
 
 /**
  * Get leaderboard for a riff post
@@ -593,7 +826,7 @@ router.post<{}, CreateChallengeResponse | ApiErrorResponse, CreateChallengeReque
       // Generate challenge-specific content
       const challengeTitle =
         title || `🏆 ${calculatedDifficulty} Musical Challenge by u/${username}`;
-      const challengeDescription = `Can you play this ${trackData.instrument} riff? ${trackData.notes.length} notes in ${Math.round(trackData.duration / 1000)}s. Difficulty: ${calculatedDifficulty}`;
+      const challengeDescription = `Can you play this ${trackData.instrument} riff? ${trackData.notes.length} notes  Difficulty: ${calculatedDifficulty}`;
 
       // Create composition metadata
       const composition = generateCompositionMetadata(trackData, username);
@@ -635,7 +868,11 @@ router.post<{}, CreateChallengeResponse | ApiErrorResponse, CreateChallengeReque
           challengeSettings: finalChallengeSettings,
         },
       };
+      console.log(
+        `🔵 [SERVER] Storing challenge composition for postId: ${post.id}, challengeType: ${finalChallengeSettings.challengeType}`
+      );
       await storeComposition(post.id, challengeComposition);
+      console.log(`🔵 [SERVER] Challenge composition stored successfully for postId: ${post.id}`);
 
       res.json({
         postId: post.id,
@@ -772,7 +1009,6 @@ router.post<{}, CreateChartResponse | ApiErrorResponse, CreateChartRequest>(
       const preview =
         `Falling Tiles Chart\n` +
         `🎵 Instrument: ${chartData.instrument}\n` +
-        `⏱️ Duration: ${chartData.duration}s @ ${chartData.bpm} BPM\n` +
         `🎯 Difficulty: ${chartData.difficulty}\n` +
         `🎹 Notes: ${chartData.notes.length}\n` +
         `✅ Cleared by creator`;
@@ -787,6 +1023,7 @@ router.post<{}, CreateChartResponse | ApiErrorResponse, CreateChartRequest>(
           heading: `Falling Tiles Chart by u/${username}`,
           buttonLabel: 'Play Chart',
           description: preview,
+          appIconUri: 'default-icon.png',
         },
         textFallback: {
           text: `${preview}\n\n*This is a RiffRivals Falling Tiles chart. Click to play!*`,
@@ -966,6 +1203,7 @@ router.post<{}, CreateRemixResponse | ApiErrorResponse, CreateRemixRequest>(
           heading: `Remix by u/${username}`,
           buttonLabel: 'Play Remix',
           description: preview,
+          appIconUri: 'default-icon.png',
         },
         textFallback: {
           text: `${preview}\n\n*This is a RiffRivals remix. Click to play!*`,
@@ -1001,6 +1239,51 @@ router.post<{}, CreateRemixResponse | ApiErrorResponse, CreateRemixRequest>(
     }
   }
 );
+
+/**
+ * Get recent jam sessions for the home screen
+ */
+router.get('/api/get-recent-jams', async (_req, res): Promise<void> => {
+  try {
+    // Get jam sessions index from Redis hash
+    const jamSessionsIndex = await redis.hGetAll('jam_sessions_index');
+    const jamSessions = [];
+
+    if (jamSessionsIndex) {
+      for (const [postId, metadataStr] of Object.entries(jamSessionsIndex)) {
+        try {
+          const metadata = JSON.parse(metadataStr);
+          jamSessions.push({
+            postId,
+            title: metadata.title || 'Untitled Jam Session',
+            collaborators: metadata.collaborators || [],
+            layerCount: metadata.layerCount || 1,
+            createdAt: metadata.createdAt || Date.now(),
+          });
+        } catch (parseError) {
+          console.error(`Error parsing jam session metadata for postId ${postId}:`, parseError);
+          // Continue with other jam sessions
+        }
+      }
+    }
+
+    // Sort by creation date (newest first) and limit to 10
+    jamSessions.sort((a, b) => b.createdAt - a.createdAt);
+    const recentJamSessions = jamSessions.slice(0, 10);
+
+    res.json({
+      success: true,
+      jamSessions: recentJamSessions,
+    });
+  } catch (error) {
+    console.error('Error fetching recent jam sessions:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch recent jam sessions',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
 
 router.post('/internal/on-app-install', async (_req, res): Promise<void> => {
   try {

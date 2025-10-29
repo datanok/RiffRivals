@@ -100,6 +100,15 @@ export const DrumKit: React.FC<DrumKitProps> = ({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore keyboard events when typing in input fields
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target as HTMLElement).isContentEditable
+      ) {
+        return;
+      }
+
       const key = e.key === ' ' ? 'SPACE' : e.key.toUpperCase();
 
       // Prevent repeat triggers

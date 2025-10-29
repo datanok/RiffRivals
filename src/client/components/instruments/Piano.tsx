@@ -37,6 +37,15 @@ export const Piano: React.FC<PianoProps> = ({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore keyboard events when typing in input fields
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target as HTMLElement).isContentEditable
+      ) {
+        return;
+      }
+
       const key = e.key.toUpperCase();
 
       if (pressedKeys.current.has(key)) return;

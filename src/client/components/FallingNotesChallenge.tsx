@@ -93,6 +93,9 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
   onChallengeComplete,
   audioEngine,
 }: FallingNotesChallengeProps) => {
+  // Suppress unused parameter warning for backward compatibility
+  void scoreWeights;
+
   const [notes, setNotes] = useState<FallingNote[]>([]);
   const [score, setScore] = useState(0);
   const [accuracy, setAccuracy] = useState(100);
@@ -194,6 +197,7 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
 
   // Track song notes for actual timing
   const songNotesIndexRef = useRef(0);
+  const completionCheckedRef = useRef(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | undefined>(undefined);
@@ -207,15 +211,32 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
   // Calculate detailed scores for challenge mode
   const calculateDetailedScores = useCallback(() => {
     const currentHitCounts = hitCountsRef.current;
-    const totalHits =
-      currentHitCounts.perfect +
-      currentHitCounts.great +
-      currentHitCounts.good +
-      currentHitCounts.miss;
-    console.log('Calculating scores:', { currentHitCounts, totalHits });
+    const totalNotes = totalNotesRef.current;
+    const hitCount = hitCountRef.current;
 
-    if (totalHits === 0) {
-      console.log('No hits detected, returning zero scores');
+    // Use the actual number of notes from the song/chart
+    const totalChartNotes = songNotes?.length || totalNotes;
+
+    // Count only notes that were successfully hit (exclude misses)
+    const notesHit = currentHitCounts.perfect + currentHitCounts.great + currentHitCounts.good;
+
+    console.log('=== SCORE CALCULATION START ===');
+    console.log('Hit counts ref:', JSON.stringify(currentHitCounts));
+    console.log('Total notes ref:', totalNotes);
+    console.log('Hit count ref:', hitCount);
+    console.log('Song notes length:', songNotes?.length || 0);
+    console.log('Total chart notes:', totalChartNotes);
+    console.log('Notes hit (perfect + great + good):', notesHit);
+    console.log('Breakdown:', {
+      perfect: currentHitCounts.perfect,
+      great: currentHitCounts.great,
+      good: currentHitCounts.good,
+      miss: currentHitCounts.miss,
+      total: notesHit + currentHitCounts.miss,
+    });
+
+    if (totalChartNotes === 0) {
+      console.log('❌ No notes detected, returning zero scores');
       return {
         timingScore: 0,
         accuracyScore: 0,
@@ -223,18 +244,17 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
       };
     }
 
-    // Timing score based on hit quality
-    const timingScore =
-      (currentHitCounts.perfect * 100 + currentHitCounts.great * 75 + currentHitCounts.good * 50) /
-      totalHits;
+    // Score is simply based on how many notes were hit
+    const accuracyScore = (notesHit / totalChartNotes) * 100;
+    const combinedScore = accuracyScore; // Just use accuracy as the final score
+    const timingScore = 0; // Not used anymore
 
-    // Accuracy score based on hit rate
-    const accuracyScore =
-      ((currentHitCounts.perfect + currentHitCounts.great + currentHitCounts.good) / totalHits) *
-      100;
-
-    // Combined score with weights
-    const combinedScore = timingScore * scoreWeights.timing + accuracyScore * scoreWeights.accuracy;
+    console.log('Score calculation:');
+    console.log(
+      `  notesHit (${notesHit}) / totalChartNotes (${totalChartNotes}) * 100 = ${accuracyScore}`
+    );
+    console.log(`  accuracyScore: ${accuracyScore}`);
+    console.log(`  combinedScore: ${combinedScore}`);
 
     const result = {
       timingScore: Math.round(timingScore),
@@ -242,17 +262,26 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
       combinedScore: Math.round(combinedScore),
     };
 
-    console.log('Calculated scores:', result);
+    console.log('Final result:', result);
+    console.log('=== SCORE CALCULATION END ===');
     return result;
-  }, [scoreWeights]);
+  }, [songNotes]);
 
   // Create challenge score when game completes
   const createChallengeScore = useCallback((): ChallengeScore => {
+    console.log('🏁 CREATING CHALLENGE SCORE - Final state:', {
+      hitCountsRef: JSON.stringify(hitCountsRef.current),
+      totalNotesRef: totalNotesRef.current,
+      hitCountRef: hitCountRef.current,
+      songNotesLength: songNotes?.length || 0,
+    });
+
     const scores = calculateDetailedScores();
     const currentHitCounts = hitCountsRef.current;
-    console.log('Creating challenge score:', {
-      currentHitCounts,
+
+    console.log('🏁 Challenge score created:', {
       scores,
+      hitCounts: currentHitCounts,
       totalNotes: totalNotesRef.current,
       hitCount: hitCountRef.current,
     });
@@ -271,7 +300,62 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
       originalTrackId: songPattern ? 'user_pattern' : 'random',
       challengeType: 'falling_notes' as ChallengeType,
     };
-  }, [calculateDetailedScores, songPattern]);
+  }, [calculateDetailedScores, songPattern, songNotes]);
+
+  // Map note to lane based on instrument type
+  const getLaneForNote = useCallback(
+    (note: DrumType | PianoNote | BassNote | SynthNote): number => {
+      switch (instrument) {
+        case 'drums': {
+          const drumLanes: Partial<Record<DrumType, number>> = {
+            'kick': 0,
+            'snare': 1,
+            'hihat': 2,
+            'crash': 3,
+            'openhat': 2,
+            'ride': 3,
+            'tom1': 1,
+            'tom2': 2,
+          };
+          return drumLanes[note as DrumType] ?? 0;
+        }
+        case 'piano': {
+          const pianoLanes: Record<PianoNote, number> = {
+            'C4': 0,
+            'D4': 1,
+            'E4': 2,
+            'F4': 3,
+            'G4': 0, // Wrap around
+            'A4': 1,
+            'B4': 2,
+            'C5': 3,
+          };
+          return pianoLanes[note as PianoNote] ?? 0;
+        }
+        case 'synth': {
+          const synthLanes: Partial<Record<SynthNote, number>> = {
+            'C4': 0,
+            'C#4': 0,
+            'D4': 1,
+            'D#4': 1,
+            'E4': 2,
+            'F4': 2,
+            'F#4': 3,
+            'G4': 3,
+            'G#4': 0, // Wrap around
+            'A4': 1,
+            'A#4': 2,
+            'B4': 3,
+            'C5': 3,
+          };
+          return synthLanes[note as SynthNote] ?? 0;
+        }
+        default:
+          return 0;
+      }
+    },
+    [instrument]
+  );
 
   const generateNote = useCallback((): FallingNote => {
     const lane = Math.floor(Math.random() * LANE_COUNT);
@@ -291,11 +375,6 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
         case 'piano': {
           const pianoNotes: PianoNote[] = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4'];
           note = pianoNotes[Math.floor(Math.random() * pianoNotes.length)] || 'C4';
-          break;
-        }
-        case 'bass': {
-          const bassNotes: BassNote[] = ['E2', 'A2', 'D3', 'G3'];
-          note = bassNotes[Math.floor(Math.random() * bassNotes.length)] || 'E2';
           break;
         }
         case 'synth': {
@@ -359,13 +438,13 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
       const currentSongNote = songNotes[songNotesIndexRef.current];
       if (currentSongNote && elapsed >= currentSongNote.startTime) {
         console.log(
-          `FallingNotesChallenge: Spawning note ${songNotesIndexRef.current}: ${currentSongNote.note} at ${elapsed}ms (expected: ${currentSongNote.startTime}ms)`
+          `FallingNotesChallenge: Spawning note ${songNotesIndexRef.current}: ${currentSongNote.note} at ${elapsed}ms (expected: ${currentSongNote.startTime}ms) in lane ${getLaneForNote(currentSongNote.note)}`
         );
         const newNote: FallingNote = {
           id: `${now}-${songNotesIndexRef.current}`,
           type: instrument,
           note: currentSongNote.note,
-          lane: Math.floor(Math.random() * LANE_COUNT), // Random lane for now
+          lane: getLaneForNote(currentSongNote.note), // Map note to correct lane
           startTime: now,
           hitTime: now + settings.speed * 1000,
           duration: settings.noteDuration,
@@ -373,7 +452,14 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
         };
         setNotes((prevNotes) => [...prevNotes, newNote]);
         songNotesIndexRef.current++;
-        totalNotesRef.current++;
+        // Don't increment totalNotesRef here - it's already set to songNotes.length at start
+        console.log('📝 NOTE SPAWNED:', {
+          noteIndex: songNotesIndexRef.current - 1,
+          noteId: newNote.id,
+          totalNotesRefNow: totalNotesRef.current,
+          songNoteIndex: songNotesIndexRef.current,
+          songNotesLength: songNotes.length,
+        });
       }
     } else {
       // Fallback to difficulty-based intervals
@@ -382,13 +468,14 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
         setNotes((prevNotes) => [...prevNotes, newNote]);
         lastNoteTimeRef.current = now;
         totalNotesRef.current++;
+        console.log('📝 NOTE SPAWNED (random):', {
+          noteId: newNote.id,
+          totalNotesRefNow: totalNotesRef.current,
+        });
       }
     }
 
     // Process notes - check for missed notes
-    let allNotesProcessed = false;
-    let noActiveNotes = false;
-
     setNotes((prevNotes) => {
       const updatedNotes = prevNotes
         .map((note) => {
@@ -397,6 +484,16 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
 
           // Check if note missed hit window
           if (position > 400 + HIT_WINDOW && !note.hit && !note.missed) {
+            console.log('❌ NOTE MISSED:', {
+              noteId: note.id,
+              note: note.note,
+              lane: note.lane,
+              position: position,
+              hitCountBefore: hitCountRef.current,
+              totalNotes: totalNotesRef.current,
+              hitCountsBefore: JSON.stringify(hitCountsRef.current),
+            });
+
             setCombo(0);
             const newAccuracy = (hitCountRef.current / totalNotesRef.current) * 100;
             setAccuracy(newAccuracy);
@@ -409,6 +506,13 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
               miss: hitCountsRef.current.miss + 1,
             };
 
+            console.log('❌ NOTE MISSED - After update:', {
+              hitCountAfter: hitCountRef.current,
+              totalNotes: totalNotesRef.current,
+              hitCountsAfter: JSON.stringify(hitCountsRef.current),
+              calculatedAccuracy: newAccuracy,
+            });
+
             return { ...note, missed: true };
           }
           return note;
@@ -419,26 +523,52 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
 
           const progress = (now - note.startTime) / 1000;
           const position = progress * settings.speed;
+
+          // Keep missed notes visible for a bit longer so players can see the red color
+          if (note.missed) {
+            return position < 600; // Keep missed notes visible longer
+          }
+
           return position < 500;
         });
 
       // Check if all notes have been processed (hit or missed)
-      allNotesProcessed = songNotes ? songNotesIndexRef.current >= songNotes.length : false;
-      noActiveNotes = updatedNotes.every((note) => note.hit || note.missed);
+      const allSpawned = songNotes ? songNotesIndexRef.current >= songNotes.length : false;
+      // All notes are processed if: all spawned AND no notes remain on screen
+      // Don't end while missed notes are still visible (they need to scroll off)
+      const noActiveNotesRemain = updatedNotes.length === 0;
+
+      // Check for completion inside the callback where we have the updated state
+      if (allSpawned && noActiveNotesRemain && !completionCheckedRef.current) {
+        completionCheckedRef.current = true;
+        console.log('🔵 [CHALLENGE] All notes processed, ending challenge:', {
+          allSpawned,
+          noActiveNotesRemain,
+          updatedNotesLength: updatedNotes.length,
+          songNotesLength: songNotes?.length,
+          songNotesIndex: songNotesIndexRef.current,
+        });
+        // Wait a bit longer to show missed notes in red before ending
+        setTimeout(() => {
+          stopChallenge();
+          onComplete();
+        }, 800); // Give time for red missed notes to be visible
+      }
 
       return updatedNotes;
     });
 
-    // Check if game should end
-    if (allNotesProcessed && noActiveNotes) {
-      // All notes have been processed, end the challenge
-      stopChallenge();
-      onComplete();
-      return;
-    }
-
     animationRef.current = requestAnimationFrame(gameLoop);
-  }, [isPlaying, settings, generateNote, stopChallenge, onComplete, songNotes, instrument]);
+  }, [
+    isPlaying,
+    settings,
+    generateNote,
+    stopChallenge,
+    onComplete,
+    songNotes,
+    instrument,
+    getLaneForNote,
+  ]);
 
   const startChallenge = useCallback(async () => {
     console.log('FallingNotesChallenge: Starting challenge with songNotes:', songNotes);
@@ -505,6 +635,7 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
     totalNotesRef.current = 0;
     lastNoteTimeRef.current = Date.now();
     startTimeRef.current = Date.now();
+    completionCheckedRef.current = false; // Reset completion check
 
     // Reset hit counts
     hitCountsRef.current = {
@@ -516,10 +647,25 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
 
     // Initialize song notes if available
     if (songNotes && songNotes.length > 0) {
-      console.log('Starting challenge with song notes:', songNotes);
+      console.log('🎮 STARTING CHALLENGE - Song mode:', {
+        songNotesCount: songNotes.length,
+        songNotes: songNotes,
+      });
       songNotesIndexRef.current = 0;
+      totalNotesRef.current = songNotes.length; // Set total notes from song (FIXED: don't increment when spawning)
+      console.log(
+        '📊 Initialized totalNotesRef to:',
+        totalNotesRef.current,
+        `(from songNotes.length, will NOT increment when notes spawn)`
+      );
     } else {
-      console.log('Starting challenge without song notes, using random generation');
+      console.log('🎮 STARTING CHALLENGE - Random mode (no song notes)');
+      totalNotesRef.current = 0; // Will be incremented as notes are generated
+      console.log(
+        '📊 Initialized totalNotesRef:',
+        totalNotesRef.current,
+        '(will increment as notes spawn)'
+      );
     }
 
     if (animationRef.current) {
@@ -527,46 +673,6 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
     }
     animationRef.current = requestAnimationFrame(gameLoop);
   }, [gameLoop, songNotes, audioEngine]);
-
-  const handleNoteRelease = useCallback((lane: number) => {
-    setNotes((prevNotes) => {
-      const now = Date.now();
-
-      // Find the note being held in this lane
-      const noteIndex = prevNotes.findIndex((n) => n.lane === lane && n.isBeingHeld);
-      if (noteIndex === -1) return prevNotes;
-
-      const note = prevNotes[noteIndex];
-      if (!note || !note.hitStartTime) return prevNotes;
-
-      // Calculate duration accuracy
-      const heldDuration = now - note.hitStartTime;
-      const expectedDuration = note.duration;
-      const durationDiff = Math.abs(heldDuration - expectedDuration);
-      const durationAccuracy = Math.max(0, 100 - (durationDiff / expectedDuration) * 100);
-
-      // Award bonus points for good duration accuracy
-      let durationBonus = 0;
-      if (durationAccuracy >= 90) {
-        durationBonus = 50;
-      } else if (durationAccuracy >= 75) {
-        durationBonus = 25;
-      } else if (durationAccuracy >= 50) {
-        durationBonus = 10;
-      }
-
-      if (durationBonus > 0) {
-        setScore((prev) => prev + durationBonus);
-        setLastHitAccuracy(`DURATION: ${Math.round(durationAccuracy)}%`);
-        setTimeout(() => setLastHitAccuracy(''), 500);
-      }
-
-      // Mark note as completed and remove it
-      const newNotes = [...prevNotes];
-      newNotes.splice(noteIndex, 1);
-      return newNotes;
-    });
-  }, []);
 
   const handleNoteHit = useCallback(
     (noteId: string, lane: number) => {
@@ -581,47 +687,45 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
         const timeDiff = Math.abs(now - note.hitTime);
         const hitAccuracy = Math.max(0, 100 - timeDiff / 10);
 
-        let points = 0;
-        let accuracyText = '';
-        let hitType: 'perfect' | 'great' | 'good' | 'miss' = 'miss';
+        // Just count as a hit, no timing penalty
+        const points = 100;
+        const accuracyText = 'HIT!';
 
-        if (hitAccuracy >= 95) {
-          points = 100;
-          accuracyText = 'PERFECT!';
-          hitType = 'perfect';
-          setCombo((prev) => prev + 1);
-        } else if (hitAccuracy >= 80) {
-          points = 50;
-          accuracyText = 'GREAT!';
-          hitType = 'great';
-          setCombo((prev) => prev + 1);
-        } else if (hitAccuracy >= 60) {
-          points = 25;
-          accuracyText = 'GOOD';
-          hitType = 'good';
-          setCombo(0);
-        } else {
-          points = 10;
-          accuracyText = 'OK';
-          hitType = 'good'; // Changed from 'miss' to 'good' - any hit should count as a hit
-          setCombo(0);
-        }
+        console.log('🎯 NOTE HIT:', {
+          noteId: note.id,
+          note: note.note,
+          lane: note.lane,
+          hitCountBefore: hitCountRef.current,
+          totalNotesBefore: totalNotesRef.current,
+          hitCountsBefore: JSON.stringify(hitCountsRef.current),
+        });
 
-        // Update detailed hit counts
+        setCombo((prev) => prev + 1);
+
+        // Update detailed hit counts - just count as good
         hitCountsRef.current = {
           ...hitCountsRef.current,
-          [hitType]: hitCountsRef.current[hitType] + 1,
+          good: hitCountsRef.current.good + 1,
         };
 
-        const multiplier = Math.min(2, 1 + combo / 10);
-        points = Math.floor(points * multiplier);
-
-        setScore((prev) => prev + points);
         hitCountRef.current++;
-
         const newAccuracy = (hitCountRef.current / totalNotesRef.current) * 100;
+
+        console.log('🎯 NOTE HIT - After update:', {
+          hitCountAfter: hitCountRef.current,
+          totalNotes: totalNotesRef.current,
+          hitCountsAfter: JSON.stringify(hitCountsRef.current),
+          calculatedAccuracy: newAccuracy,
+          accuracyFormula: `${hitCountRef.current} / ${totalNotesRef.current} * 100 = ${newAccuracy}`,
+        });
+
+        const newScore = (prevScore: number) => {
+          const updated = prevScore + points;
+          onScoreUpdate(updated, newAccuracy);
+          return updated;
+        };
+        setScore(newScore);
         setAccuracy(newAccuracy);
-        onScoreUpdate(score + points, newAccuracy);
 
         setLastHitAccuracy(accuracyText);
         setTimeout(() => setLastHitAccuracy(''), 500);
@@ -679,7 +783,7 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
         return newNotes;
       });
     },
-    [combo, score, onNoteHit, onScoreUpdate, audioEngine, audioInitialized, instrument]
+    [onNoteHit, onScoreUpdate, audioEngine, audioInitialized, instrument]
   );
 
   const handleKeyPress = useCallback(
@@ -938,16 +1042,13 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
           const px = Math.cos(angle) * dist;
           const py = Math.sin(angle) * dist;
 
-          const color =
-            effect.accuracy >= 95 ? '#00ff00' : effect.accuracy >= 80 ? '#ffff00' : '#ff6600';
+          ctx.fillStyle = '#00ff00';
 
-          ctx.fillStyle = color;
           ctx.fillRect(px - 2, py - 2, 4, 4);
         }
 
         // Center flash
-        ctx.fillStyle =
-          effect.accuracy >= 95 ? '#00ff00' : effect.accuracy >= 80 ? '#ffff00' : '#ff6600';
+        ctx.fillStyle = '#00ff00';
         ctx.fillRect(-15, -15, 30, 30);
 
         ctx.restore();
@@ -966,17 +1067,25 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
         const inWindow = distanceToHitLine <= HIT_WINDOW;
 
         let color = '#00d9ff';
-        if (note.missed) color = '#ff0064';
-        else if (inWindow) color = '#00ff00';
-        else if (note.hit) color = '#4ecdc4'; // Hit notes
+        if (note.missed) {
+          color = '#ff0000'; // Brighter red for missed notes
+          console.log('🔴 RENDERING MISSED NOTE:', note.id, 'at position', y);
+        } else if (note.hit) {
+          color = '#00ff00'; // Green for successfully hit notes
+        } else if (inWindow) {
+          color = '#ffff00'; // Yellow when in hit window (ready to hit)
+        }
 
         // Note glow
-        if (inWindow && !note.missed) {
-          ctx.shadowBlur = 15;
-          ctx.shadowColor = '#00ff00';
+        if (note.missed) {
+          ctx.shadowBlur = 20; // Stronger glow for missed notes
+          ctx.shadowColor = '#ff0000';
         } else if (note.hit) {
           ctx.shadowBlur = 15;
-          ctx.shadowColor = '#ffff00';
+          ctx.shadowColor = '#00ff00'; // Green glow for hit notes
+        } else if (inWindow && !note.missed) {
+          ctx.shadowBlur = 15;
+          ctx.shadowColor = '#ffff00'; // Yellow glow when in hit window
         } else {
           ctx.shadowBlur = 8;
           ctx.shadowColor = color;
@@ -986,22 +1095,42 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
         ctx.fillStyle = color;
         ctx.fillRect(x - 25, y - 20, 50, 40);
 
-        // Inner highlight
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-        ctx.fillRect(x - 20, y - 15, 15, 10);
+        // Special visual treatment for missed notes
+        if (note.missed) {
+          // Add a pulsing red overlay for missed notes
+          const pulseAlpha = 0.3 + 0.2 * Math.sin(now / 200);
+          ctx.fillStyle = `rgba(255, 0, 0, ${pulseAlpha})`;
+          ctx.fillRect(x - 25, y - 20, 50, 40);
+
+          // Add X mark for missed notes
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.moveTo(x - 15, y - 10);
+          ctx.lineTo(x + 15, y + 10);
+          ctx.moveTo(x + 15, y - 10);
+          ctx.lineTo(x - 15, y + 10);
+          ctx.stroke();
+        } else {
+          // Inner highlight for non-missed notes
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+          ctx.fillRect(x - 20, y - 15, 15, 10);
+        }
 
         // Border
         ctx.shadowBlur = 0;
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 3;
+        ctx.strokeStyle = note.missed ? '#ff0000' : '#000'; // Red border for missed notes
+        ctx.lineWidth = note.missed ? 4 : 3; // Thicker border for missed notes
         ctx.strokeRect(x - 25, y - 20, 50, 40);
 
-        // Note icon (8-bit style)
-        ctx.fillStyle = '#000';
-        ctx.font = 'bold 16px monospace';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('♪', x, y);
+        // Note icon (8-bit style) - only show for non-missed notes
+        if (!note.missed) {
+          ctx.fillStyle = '#000';
+          ctx.font = 'bold 16px monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('♪', x, y);
+        }
       }
     });
 
@@ -1309,36 +1438,25 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
         </div>
       </div>
 
-      {/* Hit Feedback */}
+      {/* Hit Feedback - Desktop Only */}
       {lastHitAccuracy && (
         <div
           style={{
-            textAlign: 'center',
-            fontSize: '24px',
+            position: 'fixed',
+            right: '20px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            fontSize: '20px',
             fontWeight: 'bold',
-            color:
-              lastHitAccuracy === 'PERFECT!'
-                ? '#00ff00'
-                : lastHitAccuracy === 'GREAT!'
-                  ? '#ffff00'
-                  : lastHitAccuracy === 'GOOD'
-                    ? '#ff6600'
-                    : lastHitAccuracy === 'MISS!'
-                      ? '#ff0064'
-                      : '#fff',
-            textShadow: `0 0 20px ${
-              lastHitAccuracy === 'PERFECT!'
-                ? '#00ff00'
-                : lastHitAccuracy === 'GREAT!'
-                  ? '#ffff00'
-                  : lastHitAccuracy === 'GOOD'
-                    ? '#ff6600'
-                    : lastHitAccuracy === 'MISS!'
-                      ? '#ff0064'
-                      : '#fff'
-            }, 2px 2px 0 #000`,
-            marginBottom: '12px',
+            color: lastHitAccuracy === 'MISS!' ? '#ff0064' : '#00ff00',
+            textShadow: `0 0 20px ${lastHitAccuracy === 'MISS!' ? '#ff0064' : '#00ff00'}, 2px 2px 0 #000`,
+            background: 'rgba(0, 0, 0, 0.8)',
+            padding: '12px 20px',
+            borderRadius: '8px',
+            border: `2px solid ${lastHitAccuracy === 'MISS!' ? '#ff0064' : '#00ff00'}`,
+            zIndex: 1000,
             animation: 'pulse 0.3s ease-out',
+            display: window.innerWidth > 768 ? 'block' : 'none', // Desktop only
           }}
         >
           {lastHitAccuracy}

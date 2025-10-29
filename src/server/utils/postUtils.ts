@@ -13,9 +13,8 @@ import {
 export function generateRiffPreview(trackData: TrackData): string {
   const { instrument, duration, notes } = trackData;
   const noteCount = notes.length;
-  const durationSeconds = Math.round(duration / 1000);
 
-  return `🎵 New ${instrument} riff • ${noteCount} notes • ${durationSeconds}s duration`;
+  return `🎵 New ${instrument} riff • ${noteCount} notes`;
 }
 
 /**
