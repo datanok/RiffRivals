@@ -5,6 +5,7 @@ interface ChallengeScoreSubmissionProps {
   score: ChallengeScore;
   onSubmit: (scoreData: ChallengeScoreSubmissionData) => void;
   onSkip: () => void;
+  onPlayAgain?: () => void;
   challengeTitle: string;
 }
 
@@ -25,6 +26,7 @@ export const ChallengeScoreSubmission: React.FC<ChallengeScoreSubmissionProps> =
   score,
   onSubmit,
   onSkip,
+  onPlayAgain,
   challengeTitle,
 }) => {
   const [shareOptions, setShareOptions] = useState({
@@ -273,11 +275,30 @@ export const ChallengeScoreSubmission: React.FC<ChallengeScoreSubmissionProps> =
       </div>
 
       {/* Action Buttons */}
-      <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+      <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+        {onPlayAgain && (
+          <button
+            onClick={onPlayAgain}
+            style={{
+              padding: '12px 16px',
+              background: '#ff6b6b',
+              color: 'white',
+              border: '2px solid #000',
+              borderRadius: '6px',
+              fontSize: '8px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              fontFamily: "'Press Start 2P', monospace",
+            }}
+          >
+            🔄 PLAY AGAIN
+          </button>
+        )}
+
         <button
           onClick={onSkip}
           style={{
-            padding: '12px 20px',
+            padding: '12px 16px',
             background: '#666',
             color: 'white',
             border: '2px solid #000',
@@ -295,7 +316,7 @@ export const ChallengeScoreSubmission: React.FC<ChallengeScoreSubmissionProps> =
           onClick={handleSubmit}
           disabled={!Object.values(shareOptions).some(Boolean)}
           style={{
-            padding: '12px 20px',
+            padding: '12px 16px',
             background: Object.values(shareOptions).some(Boolean) ? '#4ecdc4' : '#333',
             color: 'white',
             border: '2px solid #000',

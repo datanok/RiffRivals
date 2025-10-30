@@ -1,6 +1,6 @@
 // Core musical data structures for RiffRivals
 
-export type InstrumentType = 'drums' | 'piano' | 'synth';
+export type InstrumentType = 'drums' | 'piano' | 'synth' | 'bass';
 
 export type DrumType = 'kick' | 'snare' | 'hihat' | 'openhat' | 'crash' | 'ride' | 'tom1' | 'tom2';
 

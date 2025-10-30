@@ -22,7 +22,6 @@ type InstrumentConfig = {
   type: InstrumentType;
   name: string;
   icon: string;
-  description: string;
   color: string;
   glowColor: string;
 };
@@ -32,7 +31,6 @@ const INSTRUMENTS: InstrumentConfig[] = [
     type: 'drums',
     name: 'BEAT BLASTER',
     icon: '🥁',
-    description: 'Drop sick beats',
     color: '#ff6b6b',
     glowColor: 'rgba(255, 107, 107, 0.4)',
   },
@@ -40,7 +38,6 @@ const INSTRUMENTS: InstrumentConfig[] = [
     type: 'piano',
     name: 'MELODY MASTER',
     icon: '🎹',
-    description: 'Epic melodies',
     color: '#4ecdc4',
     glowColor: 'rgba(78, 205, 196, 0.4)',
   },
@@ -48,7 +45,6 @@ const INSTRUMENTS: InstrumentConfig[] = [
     type: 'synth',
     name: 'SYNTH MASTER',
     icon: '🎺',
-    description: 'Electronic sounds',
     color: '#a29bfe',
     glowColor: 'rgba(162, 155, 254, 0.4)',
   },
@@ -390,9 +386,9 @@ export const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-              gap: 'clamp(8px, 2vw, 12px)',
-              padding: 'clamp(12px, 2vw, 20px)',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
+              gap: 'clamp(6px, 1.5vw, 10px)',
+              padding: 'clamp(8px, 1.5vw, 12px)',
               background: 'linear-gradient(135deg, #1a1a3e 0%, #0f0f2e 100%)',
               border: '2px solid #444',
               boxShadow: '0 0 10px rgba(0, 0, 0, 0.5)',
@@ -404,7 +400,7 @@ export const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
                 <button
                   key={instrument.type}
                   style={{
-                    padding: 'clamp(12px, 2vw, 16px)',
+                    padding: 'clamp(8px, 1.5vw, 12px)',
                     border: `3px solid ${instrument.color}`,
                     background: isSelected
                       ? `linear-gradient(135deg, ${instrument.color} 0%, ${instrument.color}dd 100%)`
@@ -415,11 +411,11 @@ export const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    gap: 'clamp(4px, 1vh, 6px)',
-                    fontSize: 'clamp(8px, 1.6vw, 11px)',
+                    gap: 'clamp(3px, 0.8vh, 5px)',
+                    fontSize: 'clamp(7px, 1.4vw, 9px)',
                     fontFamily: "'Press Start 2P', monospace",
                     boxShadow: isSelected
-                      ? `0 4px 0 #000, 0 0 15px ${instrument.glowColor}`
+                      ? `0 3px 0 #000, 0 0 12px ${instrument.glowColor}`
                       : '0 2px 0 #000',
                     transform: isSelected ? 'translateY(-2px)' : 'translateY(0)',
                     position: 'relative',
@@ -441,29 +437,11 @@ export const InstrumentSelector: React.FC<InstrumentSelectorProps> = ({
 
                   <span
                     style={{
-                      fontSize: 'clamp(20px, 4vw, 28px)',
-                      filter: isSelected ? `drop-shadow(0 0 8px ${instrument.color})` : 'none',
-                      position: 'relative',
-                    }}
-                  >
-                    {instrument.icon}
-                  </span>
-                  <span
-                    style={{
-                      textShadow: isSelected ? `0 0 8px ${instrument.color}` : 'none',
+                      textShadow: isSelected ? `0 0 6px ${instrument.color}` : 'none',
                       position: 'relative',
                     }}
                   >
                     {instrument.name}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: 'clamp(6px, 1.2vw, 8px)',
-                      opacity: 0.8,
-                      position: 'relative',
-                    }}
-                  >
-                    {instrument.description}
                   </span>
                 </button>
               );

@@ -1,336 +1,733 @@
-# RiffRivals – Rhythm Battles Built by the Community
+# RiffRivals - Arcade Music Battle Arena
 
-**RiffRivals** is a Reddit-integrated rhythm platform where users make challenges for each other — not against the computer. Built on Reddit's Devvit platform, RiffRivals turns every post into a playable rhythm challenge that the community can attempt, score, and remix.
+**RiffRivals** is the world's first Reddit-native arcade music game that transforms musical creativity into competitive gameplay. Built on Reddit's Devvit platform, this interactive web app runs directly within Reddit posts, featuring multiple game modes from creative music composition to Guitar Hero-style rhythm challenges.
 
 ## What is RiffRivals?
 
-RiffRivals is a rhythm battle platform where creativity meets competition. Users create two types of challenges:
+RiffRivals is a revolutionary arcade-style music game that combines music creation, rhythm challenges, and competitive gameplay - all within Reddit's ecosystem. The game features professional virtual instruments built with React and Tone.js, offering drums, piano, bass, and synthesizers with studio-quality sound generation.
 
-1. **Replication Challenges**: Record a short musical loop on virtual instruments (drums, piano, or synth), and others must match your rhythm accuracy and timing
-2. **Falling Tiles Charts**: Design your own rhythm game levels like Beat Saber or Osu! using a visual beatmap editor
+Players can create original musical challenges by recording short loops, take on rhythm challenges with Guitar Hero-style falling notes gameplay, compete for high scores in various musical mini-games, and share their creations with the Reddit community. Every creation and score becomes part of Reddit's permanent content ecosystem, making achievements shareable and discoverable by the community.
 
-The app features professional browser-based virtual instruments built with React and Tone.js: an 8-piece drum kit, a polyphonic piano, and an electronic synth. Every challenge is published as a Reddit post, where the community can play, score, upvote, and remix the best creations.
+**Current Game State**: RiffRivals is a fully functional arcade music game featuring multiple distinct game modes, professional virtual instruments, comprehensive challenge systems, and deep Reddit integration - all with a retro arcade aesthetic and cross-platform support.
 
-### Core Features
+## Game Overview
 
-- **🎸 Create Mode**: Record short musical loops (10-20 seconds) on drums, piano, or synth. Your recording becomes a replication challenge where others must match your rhythm and timing
-- **🎼 Chart Creator Mode**: Build your own Falling Tiles level using a visual beatmap editor. Place notes, set BPM, test your chart, and publish for others to play
-- **🎮 Play Challenges**: Attempt community-created challenges in two styles:
-  - **Replication**: Listen and play back the rhythm as accurately as possible
-  - **Falling Tiles**: Hit notes as they fall down the screen, Guitar Hero style
-- **🏆 Compete & Score**: Every attempt is scored on timing accuracy and note precision. Climb the leaderboards and prove your rhythm skills
-- **🔄 Remix System**: Found a great challenge? Remix it with your own twist and publish as a new challenge
-- **🌍 Community-Driven**: The best challenges rise to the top through Reddit's voting system. Every post is a playable rhythm game
+RiffRivals transforms Reddit into an interactive music gaming platform where users can:
+
+- **Create Musical Challenges**: Record original beats and melodies using professional virtual instruments that become replication challenges for other players
+- **Battle in Rhythm Games**: Play Guitar Hero-style falling notes challenges with precise timing mechanics using keyboard controls (A, S, D, F or 1, 2, 3, 4)
+- **Design Custom Charts**: Build your own falling notes levels with a visual timeline editor - you must clear your own chart with 70%+ accuracy before publishing
+- **Compete on Leaderboards**: Submit scores and compete with the Reddit community through integrated scoring systems
+- **Master Multiple Instruments**: Play drums, piano, bass, and synthesizer with authentic sound synthesis
+
+The game features a retro arcade aesthetic with neon colors, pixel-perfect styling, and classic 8-bit inspired visual effects, all powered by modern web audio technology using Tone.js.
 
 ## What Makes RiffRivals Innovative?
 
-### 🚀 **Player-Made Rhythm Games**
+### 🚀 **World's First Reddit-Native Arcade Music Game**
 
-- **Community as Game Designers**: Every user can create playable rhythm challenges. The community decides what's fun through voting
-- **Two Creative Paths**: Record live performances OR design levels with a visual editor. Different skills, same competitive spirit
-- **Must Clear to Publish**: Chart creators must successfully play through their own level before posting. Ensures every challenge is fair and playable
-- **Native Reddit Integration**: Challenges are Reddit posts stored in Redis. Play, comment, vote, and discuss without leaving Reddit
+- **Revolutionary Gaming Platform**: First arcade-style music game built specifically for Reddit, combining social features with competitive gameplay in a native Reddit environment
+- **Native Integration**: Game data and high scores stored directly in Reddit posts using Redis, making achievements part of Reddit's permanent content ecosystem
+- **Social Competition**: Seamless integration with Reddit's community features, allowing players to share scores, challenge friends, and build musical communities through upvotes and comments
+- **Persistent Progress**: Every score, creation, and achievement becomes discoverable, shareable content that can be upvoted and discussed by the community
+- **Threading-Based Collaboration**: Uses Reddit's comment threading system as the foundation for musical collaboration, creating branching musical conversations
+
+### 🎵 **Professional Browser-Based Virtual Instruments**
+
+- **🥁 Beat Blaster (Drum Kit)**: 8-piece electronic drum set with arcade-style visual design featuring kick, snare, hi-hat, open hat, crash, ride, and two toms with realistic Tone.js synthesis
+- **🎹 Melody Master (Piano)**: Full chromatic keyboard with octave controls (Z/X keys), polyphonic chord support, and authentic piano sounds with built-in reverb
+- **🎺 Synth Master (Synthesizer)**: Electronic synthesizer with multiple waveforms and effects for modern electronic music creation
+- **🎸 Bass Blast (Bass Guitar)**: 4-string bass guitar with fret selection (0-12 frets), authentic bass synthesis using MonoSynth with sub-bass emphasis and compression
+- **🔊 Tone.js Audio Engine**: Professional-grade Web Audio API synthesis delivering studio-quality sound directly in the browser
+
+### 🎮 **Innovative Rhythm Game Mechanics**
+
+- **Falling Notes Challenge**: Guitar Hero-style gameplay where musical notes fall down 4 lanes, with players hitting them at the perfect timing window using keyboard controls (A, S, D, F or 1, 2, 3, 4)
+- **Replication Challenge**: Listen to a short musical loop and try to recreate it exactly using the same instrument, with scoring based on note accuracy and timing precision
+- **Chart Creator Mode**: Design custom Falling Tiles levels with precise note placement, timing, and difficulty settings like Beat Saber or Osu!
+- **Real-Time Scoring**: Advanced scoring system with combo multipliers, streak bonuses, and detailed performance analytics
+
+### 🏆 **Advanced Challenge System with Quality Control**
+
+- **Mandatory Chart Clearing**: Chart creators must clear their own charts with 70%+ accuracy before publishing, ensuring all community challenges are actually playable
+- **Comprehensive Scoring**: Replication challenges use weighted scoring (50% note accuracy, 30% timing precision, 20% velocity dynamics) for fair and detailed performance evaluation
+- **Mobile-Optimized Gameplay**: Falling Notes challenges feature auto-scrolling on mobile devices to keep control buttons visible during gameplay
+- **Privacy Controls**: Players can choose what score information to share publicly while still participating in leaderboards
+
+### 🎮 **Current Game Features**
+
+- **Dynamic Splash Screen**: Animated 8-bit style introduction with RiffRivals branding, floating pixels, scanline effects, and audio initialization
+- **Retro Home Screen**: Arcade-styled main menu with neon grid background, scanline effects, and three primary mode selection cards
+- **Professional Virtual Instruments**:
+  - 🥁 **BEAT BLASTER (Drum Kit)**: 8-piece electronic drum set with realistic layout and professional Tone.js synthesis (Q, W, E, R, A, S, D, SPACE keys)
+  - 🎹 **MELODY MASTER (Piano)**: Full chromatic keyboard with octave controls and polyphonic chord support (ASDFGHJK for white keys, WETYUI for black keys, Z/X for octaves)
+  - 🎺 **SYNTH MASTER (Synthesizer)**: Electronic synthesizer with multiple waveforms and advanced synthesis (same layout as piano)
+  - 🎸 **BASS BLAST (Bass Guitar)**: 4-string bass with fret selection and authentic bass synthesis (1,2,3,4 for strings, Q/W for fret ±1, A/S for fret ±5)
+- **Three Core Game Modes**:
+  - **🎸 CREATE Mode**: Record musical loops using professional virtual instruments that become replication challenges for other players
+  - **🎼 CHART Creator**: Design custom Guitar Hero-style levels with visual timeline editor - you must clear your own chart with 70%+ accuracy before publishing
+  - **🎮 PLAY Challenges**: Browse and play community-created rhythm challenges in two distinct formats (Falling Notes and Replication)
+- **Advanced Gameplay Systems**:
+  - **Guitar Hero-Style Gameplay**: 4-lane falling notes with combo system, real-time scoring, explosive visual effects, and mobile-optimized controls
+  - **Replication Challenges**: Listen to a musical pattern and recreate it note-for-note with sequence-based scoring focused on accuracy
+  - **Challenge Analytics**: Detailed performance tracking, leaderboards, comprehensive scoring system, and privacy controls
+  - **Score Submission System**: Submit scores to Reddit leaderboards with privacy controls and custom messages
+- **Professional Audio Engine**: Tone.js-based synthesis with studio-quality sound generation, automatic audio context management, and cross-platform compatibility
+- **Reddit Integration**: Complete server-side API with Redis storage, post/comment creation, and native Reddit threading
+- **Predefined Song Library**: Classic songs like "Twinkle Twinkle Little Star", "Für Elise", "Seven Nation Army", "Smoke on the Water", "Canon in D" and more
+- **Mobile Optimization**: Touch controls, auto-scrolling for mobile gameplay, and responsive design
+
+### Core Game Modes
+
+RiffRivals features multiple game modes accessible from the retro-styled home screen with neon grid background and arcade-style mode selection cards:
+
+- **🏠 HOME MODE**: Main menu with retro arcade styling featuring three primary mode selection cards (CREATE, CHART, PLAY) with neon grid background and scanline effects
+- **🎸 CREATE MODE**: Record short musical loops using professional virtual instruments that become replication challenges for other players - simply record a pattern and others will try to replicate it exactly
+- **🎼 CHART CREATOR**: Design custom Falling Notes levels like Guitar Hero or Beat Saber with precise note placement, timing, and difficulty settings - you must clear your own chart with 70%+ accuracy before publishing
+- **🎮 PLAY CHALLENGES**: Browse and play community-created rhythm challenges in two exciting formats:
+  - **🎯 Replication Challenge**: Listen to a musical pattern and try to recreate it note-for-note with sequence-based scoring focused on playing the correct notes in the right order
+  - **🎵 Falling Notes Challenge**: Guitar Hero-style gameplay where musical notes fall down 4 lanes and you hit them with perfect timing using keyboard controls (A, S, D, F or 1, 2, 3, 4) or touch controls on mobile
+
+### Professional Virtual Instruments
+
+- **🥁 BEAT BLASTER (Drum Kit)**: 8-piece electronic drum set with realistic drum layout positioning, arcade-style visual feedback, and professional Tone.js synthesis using MembraneSynth for tonal drums and NoiseSynth for cymbals. Features kick, snare, hi-hat, open hat, crash, ride, tom1, tom2. Keyboard controls: Q, W, E, R, A, S, D, SPACE
+- **🎹 MELODY MASTER (Piano)**: Full chromatic keyboard with octave controls (Z/X keys for octaves 1-7), polyphonic chord support, authentic piano sounds with built-in reverb using PolySynth. Keyboard layout: ASDFGHJK for white keys, WETYUI for black keys. Supports 1.5 octaves display with proper key positioning
+- **🎺 SYNTH MASTER (Synthesizer)**: Electronic synthesizer with configurable oscillators, envelope controls (ADSR), filter options, and advanced synthesis capabilities. Same keyboard layout as piano with electronic sound generation and multiple waveform types
+- **🎸 BASS BLAST (Bass Guitar)**: 4-string bass guitar with fret selection (0-12 frets), string tuning (E, A, D, G), and authentic bass synthesis using MonoSynth with sub-bass emphasis. Keyboard controls: 1, 2, 3, 4 for strings; Q/W for fret ±1; A/S for fret ±5
+- **🎚️ Advanced Audio Engine**: DhwaniAudioEngine with real-time synthesis, automatic audio context management, professional-grade sound quality using Tone.js Web Audio API, and intelligent audio initialization on user interaction
+
+## What Makes RiffRivals Innovative?
+
+### 🚀 **World's First Reddit-Native Arcade Music Game**
+
+- **Revolutionary Gaming Platform**: First arcade-style music game built specifically for Reddit, combining social features with competitive gameplay in a native Reddit environment
+- **Native Integration**: Game data and high scores stored directly in Reddit posts using Redis, making achievements part of Reddit's permanent content ecosystem
+- **Social Competition**: Seamless integration with Reddit's community features, allowing players to share scores, challenge friends, and build musical communities through upvotes and comments
+- **Persistent Progress**: Every score, creation, and achievement becomes discoverable, shareable content that can be upvoted and discussed by the community
+- **Threading-Based Collaboration**: Uses Reddit's comment threading system as the foundation for musical collaboration, creating branching musical conversations
+
+### 🎵 **Revolutionary Musical Collaboration System**
+
+- **Reddit-as-DAW**: Transforms Reddit's threading system into a collaborative digital audio workstation where each comment can add a musical layer
+- **Asynchronous Jam Sessions**: Players can contribute to musical compositions across different time zones and schedules using Reddit's persistent comment system
+- **Musical Storytelling**: Each jam session becomes a narrative told through music, with the Reddit thread documenting the creative process and community interaction
+- **Viral Music Creation**: Musical compositions can spread across subreddits and gain community traction through Reddit's voting and sharing mechanisms
+
+### 🎮 **Advanced Challenge System with Quality Control**
+
+- **Mandatory Chart Clearing**: Chart creators must clear their own charts with 70%+ accuracy before publishing, ensuring all community challenges are actually playable
+- **Comprehensive Scoring**: Replication challenges use weighted scoring (50% note accuracy, 30% timing precision, 20% velocity dynamics) for fair and detailed performance evaluation
+- **Mobile-Optimized Gameplay**: Falling Notes challenges feature auto-scrolling on mobile devices to keep control buttons visible during gameplay
+- **Privacy Controls**: Players can choose what score information to share publicly while still participating in leaderboards
 
 ### 🎹 **Professional Browser-Based Virtual Instruments**
 
-- **🥁 Advanced Drum Kit**: 8-piece electronic drum set (Kick, Snare, Hi-Hat, Open Hat, Crash, Ride, Tom 1, Tom 2) with velocity-sensitive pads and realistic Tone.js synthesis
-- **🎹 Polyphonic Piano**: Full chromatic keyboard with authentic piano sounds using PolySynth and chord support for complex melodies
-- **🎺 Electronic Synth**: Versatile synthesizer for creating electronic sounds and lead melodies
+- **🥁 Beat Blaster (Drum Kit)**: 8-piece electronic drum set with arcade-style visual design featuring kick, snare, hi-hat, open hat, crash, ride, and two toms with realistic Tone.js synthesis
+- **🎹 Melody Master (Piano)**: Full chromatic keyboard with octave controls, polyphonic chord support, and authentic piano sounds with built-in reverb
+- **🎺 Synth Master (Synthesizer)**: Electronic synthesizer with multiple waveforms and effects for modern electronic music creation
+- **🎸 Bass Blast (Bass Guitar)**: 4-string bass guitar with fret selection (0-12 frets), authentic bass synthesis using MonoSynth with sub-bass emphasis and compression
 - **🔊 Tone.js Audio Engine**: Professional-grade Web Audio API synthesis delivering studio-quality sound directly in the browser
 
-### 🎼 **Visual Chart Creator**
+### 🎮 **Innovative Rhythm Game Mechanics**
+
+- **Falling Notes Challenge**: Guitar Hero-style gameplay where musical notes fall down 4 lanes, with players hitting them at the perfect timing window using keyboard controls (A, S, D, F or 1, 2, 3, 4)
+- **Replication Challenge**: Listen to a short musical loop and try to recreate it exactly using the same instrument, with scoring based on note accuracy and timing precision
+- **Chart Creator Mode**: Design custom Falling Tiles levels with precise note placement, timing, and difficulty settings like Beat Saber or Osu!
+- **Real-Time Scoring**: Advanced scoring system with combo multipliers, streak bonuses, and detailed performance analytics
+
+### 🏆 **Community-Driven Content**
 
-- **Timeline Grid Editor**: Place notes on a BPM-synced timeline with snap-to-grid functionality
-- **Multi-Lane System**: 4-6 lanes for different drum sounds or melodic notes
-- **Real-Time Preview**: Test your chart by playing it in Falling Tiles mode before publishing
-- **Difficulty Auto-Calculation**: System analyzes note density, BPM, and complexity to assign difficulty ratings
-- **Validation System**: Ensures charts have proper timing alignment, reasonable note density, and no overlapping notes
+- **User-Generated Challenges**: Every challenge is created by the community - record a riff or design a chart for others to attempt
+- **Reddit Post Integration**: Each challenge becomes a Reddit post that can be upvoted, commented on, and shared
+- **Leaderboards**: Compete for high scores on community challenges with persistent Reddit-based scoring
+- **Advanced Analytics**: Detailed performance tracking and improvement suggestions
+
+### 🎵 **Accessible Music Creation**
+
+- **No Musical Experience Required**: Simple interfaces make it easy for anyone to create musical challenges
+- **Instant Feedback**: Real-time visual and audio feedback helps players learn and improve
+- **Cross-Platform**: Works on both desktop and mobile devices with touch-optimized controls
+- **Browser-Based**: No downloads required - everything runs directly in your web browser
+
+## How to Play RiffRivals
+
+### 🎮 **Getting Started**
+
+1. **🚀 Launch the Game**:
+
+   - Open a RiffRivals post in your Reddit feed
+   - The game displays a dynamic 8-bit style splash screen with animated floating pixels, scanline effects, and the RiffRivals logo
+   - Features cycling welcome messages, feature highlights, and retro visual effects
+   - Click "🚀 START GAME" to enter the game and enable audio (required for Web Audio API)
+   - The game initializes the Tone.js audio engine and performs browser compatibility checks
+   - You'll see the retro-styled main menu with neon grid background, scanline effects, and three primary mode selection cards
+
+2. **🏠 Main Menu Navigation**:
+   - **🎸 CREATE**: "Record a musical loop" - Create original musical challenges using professional virtual instruments
+   - **🎼 CHART**: "Design falling tiles" - Build custom Guitar Hero-style levels with visual timeline editor
+   - **🎮 PLAY**: "Try challenges" - Browse and play community-created rhythm challenges in two distinct formats
+   - **Navigation Header**: Use the top navigation buttons to switch between modes at any time
+   - **Audio Initialization**: Audio is automatically initialized when you click "START GAME" on the splash screen
 
-### 🏆 **Competitive Scoring System**
+### 🎮 **Step-by-Step Gameplay Guide**
 
-- **Dual Scoring Metrics**: Every challenge is scored on both timing accuracy (rhythm precision) and note accuracy (correct notes played)
-- **Leaderboards**: Compete for the top spot on each challenge. Scores are stored in Redis and displayed on challenge posts
-- **Grade System**: Earn grades from S-rank (perfect) down to D-rank based on your performance
-- **Remix Challenges**: Take any existing challenge and create your own variation. Original creator gets credit through parentPostId linking
+**For New Players - Quick Start:**
 
-### 🔧 **Advanced Audio Technology**
+1. **🚀 Launch**: Click "🚀 START GAME" on the dynamic splash screen to initialize audio and enter the game
+2. **🔊 Enable Audio**: Click the audio initialization button in the top-right corner to enable sound
+3. **🎸 Try CREATE Mode**: Start with CREATE mode to record your first musical loop using the virtual instruments
+4. **🎮 Play Challenges**: Click PLAY to try community challenges - start with Falling Notes for Guitar Hero-style gameplay
+
+**For Rhythm Game Fans:**
+
+1. **🎵 Falling Notes Challenge**: Choose PLAY → Select a challenge → Use A,S,D,F keys (or 1,2,3,4) to hit falling notes as they reach the bottom line
+2. **🎯 Replication Challenge**: Listen to a musical pattern → Click "START CHALLENGE" → Play the notes back in sequence → Get scored on accuracy
+3. **🏆 Compete**: Submit scores to Reddit leaderboards with privacy controls and compete with the community
+4. **📊 Track Progress**: View detailed analytics including accuracy, timing, and performance breakdowns
 
-- **Real-Time Synthesis**: Live audio generation with sub-millisecond timing precision using Web Audio API with automatic latency compensation
-- **Multi-Track Playback**: Individual track muting, soloing, and volume control with visual waveform representation and synchronized playback
-- **Composition Management**: Advanced layering, mixing, and track organization with real-time composition statistics and validation
-- **Smart Compression**: Automatic musical data optimization for Reddit's 4MB platform limits while maintaining audio quality through efficient JSON serialization
+**For Music Creators:**
+
+1. **🎼 Chart Creator**: Design custom Falling Notes levels with the visual timeline editor - you must clear your own chart with 70%+ accuracy before publishing
+2. **🎸 CREATE Mode**: Record original musical loops using drums, piano, bass, or synth that become replication challenges for others
+3. **🎵 Challenge Settings**: Configure difficulty, challenge type (Falling Tiles, Replication, or Both), and scoring parameters
+4. **🚀 Publish**: Share your creations as Reddit posts for the community to play and rate
+
+**For Mobile Players:**
+
+1. **📱 Touch Controls**: All instruments support touch controls optimized for mobile devices
+2. **🎮 Auto-Scroll**: Falling Notes challenges automatically scroll to keep control buttons visible on mobile
+3. **🔄 Orientation Support**: Game adapts to orientation changes and screen size variations
+4. **👆 Responsive Design**: All interfaces scale appropriately for different screen sizes
+
+### 🎸 **CREATE MODE - Record Musical Challenges**
+
+Create Mode features a streamlined recording system that allows you to record musical loops that become replication challenges for other players.
+
+1. **🎛️ Choose Your Instrument**:
 
-## How to Play Dhwani
+   - **🥁 BEAT BLASTER (Drum Kit)**: 8-piece electronic drum set with retro arcade styling
+     - Click drum pads or use keyboard keys (Q, W, E, R, A, S, D, SPACE)
+     - Features kick, snare, hi-hat, open hat, crash, ride, tom1, tom2 in authentic drum kit layout
+     - Visual feedback with glowing pads and arcade-style borders
+   - **🎹 MELODY MASTER (Piano)**: Full chromatic keyboard with octave controls
+     - Use octave controls (Z/X keys) to access different pitch ranges (octaves 1-7)
+     - Keyboard shortcuts: ASDFGHJK for white keys, WETYUI for black keys
+     - Polyphonic chord support with authentic piano sounds and built-in reverb
+   - **🎺 SYNTH MASTER (Synthesizer)**: Electronic synthesizer with advanced synthesis
+     - Same keyboard layout as piano with electronic synthesis
+     - Multiple oscillator types and envelope controls for modern electronic music
+   - **🎸 BASS BLAST (Bass Guitar)**: 4-string bass guitar with fret selection
+     - Use keys 1, 2, 3, 4 for strings; Q/W for fret ±1; A/S for fret ±5
+     - Authentic bass synthesis with sub-bass emphasis and compression
+
+2. **⏺️ Recording Your Challenge**:
+   - Click "▶️ START RECORDING" to begin capturing your musical pattern
+   - Play your musical pattern using the selected instrument with real-time visual feedback
+   - Notes are captured with precise timing and velocity information
+   - The interface shows live note count and recording duration
+   - Click "⏹️ STOP & SAVE" when finished
+   - Use "🔄 RECORD AGAIN" to restart if you make a mistake
+   - Add a title for your challenge
+   - Click "📤 POST CHALLENGE" to publish as a Reddit post for others to attempt
+   - Other players will try to replicate your musical pattern exactly in replication challenges!
+
+### 🎼 **CHART CREATOR MODE - Design Custom Beatmaps**
+
+Chart Creator allows you to design custom Guitar Hero-style levels with precise note placement and timing.
+
+1. **🎼 Design Your Level**:
+
+   - Create custom Falling Notes levels with a visual timeline editor
+   - Set BPM (60-240 range), chart title, and difficulty level
+   - Choose your instrument (piano, drums, synth)
+   - Use the 4-lane note placement system:
+     - Lane 0: Left lane (A/1 key)
+     - Lane 1: Center-left lane (S/2 key)
+     - Lane 2: Center-right lane (D/3 key)
+     - Lane 3: Right lane (F/4 key)
+   - Click on the timeline to add notes in your selected lane
+   - Real-time preview of your chart as you build with visual feedback
+
+2. **🎮 Test Your Creation**:
+
+   - Click "TEST CHART" to play your level in Falling Notes mode
+   - **Mandatory clearing requirement**: You must clear your own chart with 70%+ accuracy before publishing
+   - Charts auto-calculate difficulty based on note density, timing complexity, and instrument type
+   - Get immediate feedback on your chart's playability and make adjustments
+
+3. **🌍 Share with the Community**:
+   - Once cleared, click "SAVE & PUBLISH" to post as a Reddit challenge
+   - Your chart becomes available for other players to attempt in PLAY mode
+   - Charts are stored as Reddit posts and can be upvoted by the community
+   - Build a reputation as a skilled chart creator
+
+### 🎮 **PLAY CHALLENGES - Test Your Musical Skills**
+
+The Play mode offers access to community-created challenges and predefined songs in two formats:
+
+#### **🎯 Replication Challenge**
+
+Test your ability to recreate musical patterns note-for-note with sequence-based scoring focused on accuracy.
+
+1. **📚 Listen and Learn**:
+
+   - Browse available challenges from the challenge selector
+   - Choose from community-created challenges or predefined songs including:
+     - **Piano Challenges**: "Twinkle Twinkle Little Star" (easy), "Für Elise Opening" (medium), "Piano Virtuoso" (hard)
+     - **Drum Challenges**: "We Will Rock You" (easy), "Rock Groove" (medium), "Polyrhythmic Madness" (hard)
+     - **Bass Challenges**: "Bass Foundation" (easy), "Seven Nation Army" (medium)
+     - **Synth Challenges**: Various electronic patterns across all difficulty levels
+   - Click "🎵 PLAY TARGET" to listen to the original musical pattern
+   - Pay attention to the sequence of notes and rhythm patterns
+   - Visual cues show which notes to play next
+
+2. **🎵 Play Your Attempt**:
+
+   - Click "🎯 START CHALLENGE" to begin the replication challenge
+   - Use the same instrument as the original challenge with full virtual instrument interface
+   - Play the notes in the correct sequence - only correct notes in order are counted
+   - Real-time visual feedback shows your progress with note highlighting
+   - Wrong notes are ignored - you must play the expected note to advance
+   - The challenge completes when you've played all the required notes in the correct sequence
+
+3. **📊 Get Your Score**:
+   - **Note Accuracy**: Percentage of correct notes played in the right sequence
+   - **Sequence-Based Scoring**: Focus on playing the right notes in the right order
+   - **Overall Score**: Combined score with letter grades (S, A, B, C, D)
+   - **Hit Breakdown**: Shows correct notes vs total notes required
+   - **Score Submission**: Option to submit scores to Reddit leaderboards with privacy controls and custom messages
+
+#### **🎵 Falling Notes Challenge (Guitar Hero Style)**
+
+Experience Guitar Hero-style gameplay where musical notes fall down lanes with professional scoring and visual effects.
+
+1. **🎮 Challenge Selection**:
+
+   - Browse available Falling Notes challenges from the PLAY menu
+   - Challenges auto-load when clicking Reddit posts with chart data
+   - Preview challenge metadata including instrument, difficulty, and note count
+   - Select from predefined challenges including:
+     - **Piano**: "Piano Basics" (easy), "Piano Arpeggios" (medium), "Piano Virtuoso" (hard)
+     - **Drums**: "Basic Beat" (easy), "Rock Groove" (medium), "Polyrhythmic Madness" (hard)
+     - **Bass**: "Bass Foundation" (easy) and other bass patterns
+     - **Synth**: Various electronic music patterns across difficulty levels
+
+2. **🎯 Gameplay Mechanics**:
+
+   - Musical notes fall from the top down 4 lanes on a retro-styled game canvas
+   - Hit the corresponding key when notes reach the hit line at the bottom
+   - Use keyboard keys (A, S, D, F or 1, 2, 3, 4) for the 4 lanes
+   - Touch controls available for mobile devices with auto-scrolling to keep buttons visible
+   - Perfect timing builds combo multipliers with explosive visual effects
+   - Real-time scoring with combo tracking, accuracy display, and hit feedback
+   - Audio feedback plays the actual note sound when hit correctly using Tone.js synthesis
+   - Missed notes show visual feedback for clear performance indication
+
+3. **🏅 Advanced Scoring System**:
+   - **Hit/Miss Detection**: Precise timing window detection with visual feedback
+   - **Combo Tracking**: Consecutive hits build your combo streak with multiplier effects
+   - **Accuracy Percentage**: Real-time accuracy tracking based on notes hit vs total notes
+   - **Final Grade**: Letter grades (S, A, B, C, D) based on overall performance
+   - **Visual Effects**: Particle explosions, screen effects, and dynamic lighting
+   - **Challenge Completion**: Automatic score calculation with comprehensive results display
+   - **Score Submission**: Submit scores to Reddit leaderboards with privacy controls and compete with the community
 
-### 🎯 **Creating Your First Musical Riff**
+### 🏆 **Competition & Community Features**
+
+1. **📈 Advanced Leaderboards**:
+
+   - Compete for high scores on community challenges with Reddit-based leaderboards
+   - View detailed leaderboards with player rankings, scores, and performance analytics
+   - Track your personal best scores and improvement over time
+   - Challenge-specific leaderboards for both Replication and Falling Notes modes
+   - Privacy controls for score sharing (choose what to share publicly)
+
+2. **🎖️ Deep Reddit Integration**:
 
-1. **🚀 Launch the App**:
+   - Every challenge becomes a Reddit post that can be upvoted, commented on, and shared
+   - Automatic score submission creates Reddit comments with achievements and performance details
+   - Build your reputation as a skilled player or creative challenge designer
+   - Discover new challenges through Reddit's voting system and community recommendations
+   - Native Reddit threading system for community interaction
+
+3. **🎵 Social Features**:
+   - Challenge creators can see community feedback, engagement, and analytics
+   - Community-driven content discovery through Reddit's algorithm and voting
+   - Score submission system with custom messages and privacy controls
+   - Challenge analytics showing performance statistics and community engagement
 
-   - Open a Dhwani post in your Reddit feed
-   - The app automatically loads with the main dashboard
-   - If no composition exists, you'll see the "Create New Composition" interface
-   - The app initializes the Tone.js audio engine and loads all virtual instruments
+## Current Game State & Features
 
-2. **🎵 Choose Your Instrument**:
+RiffRivals is a fully functional arcade music game with the following implemented features:
 
-   - In the Recording Studio section, select from three professional virtual instruments:
-     - **🥁 Drum Kit**: 8-piece electronic drum set (Kick, Snare, Hi-Hat, Open Hat, Crash, Ride, Tom 1, Tom 2) for rhythm and percussion
-     - **🎹 Piano**: Polyphonic keyboard for melody and harmony with 7-octave range (Octave 1-7) and chord support
-     - **🎸 Bass Guitar**: 4-string bass (E-A-D-G tuning) with 13-fret range (0-12 frets) for low-end foundation
-   - Each instrument interface appears in the black instrument panel with unique controls and real-time visual feedback
+### 🎮 **Core Game Systems**
 
-3. **⏺️ Start Recording**:
+- **Dynamic Splash Screen**: Animated 8-bit introduction with cycling welcome messages, feature highlights, and retro visual effects
+- **Retro Home Screen**: Arcade-styled main menu with neon grid background, scanline effects, and three primary mode selection cards
+- **Professional Audio Engine**: Tone.js-based synthesis with studio-quality sound generation and automatic audio context management
+- **Cross-Platform Support**: Works on desktop and mobile devices with touch-optimized controls
+- **Reddit Integration**: Complete server-side API with Redis storage and native Reddit post/comment creation
+- **Browser Compatibility**: Automatic compatibility checking and graceful fallbacks for unsupported browsers
 
-   - Click the red "Start Recording" button in the Recording Studio
-   - The button changes to show recording status with a pulsing red dot and timer
-   - Note counter shows how many notes you've played in real-time
-   - The DhwaniAudioEngine begins capturing note events with precise timestamps
+### 🎵 **Virtual Instruments**
 
-4. **🎶 Play Your Musical Part**:
-
-   - **Drums**: Click the 8 drum pads arranged in realistic drum kit formation
-     - Each pad triggers specific Tone.js synthesis (MembraneSynth for kick/toms, NoiseSynth for cymbals/snare)
-     - Pads glow red when struck with velocity-sensitive response
-     - Visual feedback shows active drum hits during playback
-   - **Piano**: Click piano keys with traditional white and black key layout
-     - Use +/- octave controls to access different pitch ranges
-     - PolySynth enables playing single notes or complex chords simultaneously
-     - Keys depress visually when played with note name display
-   - **Bass**: Select fret position (0-12) then click strings (E, A, D, G)
-     - Fret selector grid shows current position with red highlighting
-     - MonoSynth generates authentic bass tones with low-pass filtering
-     - Strings glow green when played with automatic note calculation
-
-5. **⏹️ Stop & Add Track**:
-
-   - Click "Stop & Add Track" when your performance is complete
-   - Your recording automatically becomes a TrackData object in the composition
-   - The system calculates duration, note count, and timing information
-   - Use "Clear" button to discard and re-record if needed
-
-6. **🎼 Build Your Composition**:
-
-   - Switch instruments using the InstrumentSelector component
-   - Record additional layers that automatically sync with existing tracks
-   - Each track appears in the CompositionManager with individual controls
-   - Preview your multi-track composition with the PlaybackEngine
-
-7. **📝 Save & Share**:
-   - Add a title in the composition metadata section
-   - Click "Save Composition" to create a Reddit post via the `/api/create-riff` endpoint
-   - Your musical creation becomes a shareable Reddit post stored in Redis
-   - Other users can now jam on your composition through the reply system
-
-### 🎸 **Jamming on Existing Riffs (Collaborative Mode)**
-
-1. **🔍 Find a Musical Riff**:
-
-   - Browse Dhwani posts in your subreddit with musical emojis (🎵, 🥁, 🎹, 🎸)
-   - Click "View Post" mode to see existing musical compositions
-   - The RiffPost component loads the original composition from Redis via `/api/get-composition`
-   - View track information, collaborator list, and composition statistics
-
-2. **🎤 Start a Jam Session**:
-
-   - Click the green "Jam on this" button on any musical post
-   - The app switches to JamReply mode showing the original tracks
-   - The PlaybackEngine loads all existing layers for reference playback
-   - Original composition metadata displays collaborators and creation history
-
-3. **🎼 Choose Your Complementary Instrument**:
-
-   - Select from the InstrumentSelector (different from the original for variety)
-   - Consider musical complementarity based on existing tracks:
-     - Add drums to a piano melody for rhythmic foundation
-     - Add bass to a drum rhythm for harmonic support
-     - Add piano harmony to a bass line for melodic richness
-   - The interface prevents conflicts and suggests complementary instruments
-
-4. **🎵 Record Your Musical Layer**:
-
-   - The AudioRecorder component plays reference tracks while you record
-   - Your new recording automatically synchronizes with the existing composition timing
-   - Visual feedback shows both original and new track activity with real-time note highlighting
-   - The DhwaniAudioEngine ensures perfect timing alignment with existing layers
-
-5. **👀 Preview Combined Result**:
-
-   - Use "Preview Combined Composition" to hear original + your addition
-   - The PlaybackEngine renders all tracks simultaneously with individual mute/solo controls
-   - Visual track indicators show which instruments are currently playing
-   - Verify your musical contribution enhances the original composition
-
-6. **💬 Submit Your Jam Reply**:
-
-   - Click "Post Jam Reply" to add your layer as a Reddit comment via `/api/create-jam-reply`
-   - Your musical contribution becomes part of the threaded conversation
-   - The combined CompositionData is stored in Redis with updated collaborator list
-   - The system generates descriptive comment text with track information
-
-7. **🔄 Continue the Collaboration**:
-   - Others can jam on your combined composition, adding even more layers
-   - Each reply builds on the previous musical conversation with full version history
-   - Complex multi-instrument arrangements emerge through community collaboration
-   - The threading system preserves the complete musical evolution
-
-### 🎵 **Mastering the Virtual Instruments**
-
-#### **🥁 Drum Kit Interface**
-
-- **Layout**: 8 drum pads arranged in realistic drum kit formation using CSS Grid (3x4 layout)
-- **Drum Sounds Available** (powered by Tone.js synthesis):
-  - **Kick**: MembraneSynth (C1) for deep bass drum rhythm foundation
-  - **Snare**: NoiseSynth with high-pass filter (1000Hz) for sharp backbeat
-  - **Hi-Hat**: NoiseSynth with tight envelope (50ms decay) and high-pass filter (8000Hz)
-  - **Open Hat**: NoiseSynth with longer decay (300ms) and high-pass filter (6000Hz)
-  - **Crash**: NoiseSynth with long decay (2s) and high-pass filter (4000Hz)
-  - **Ride**: NoiseSynth with sustain (200ms) and high-pass filter (3000Hz)
-  - **Tom 1**: MembraneSynth (F2) for high tom fills and transitions
-  - **Tom 2**: MembraneSynth (C2) for low tom deeper fills
-- **Playing Technique**: Click or tap pads with velocity sensitivity (0.1-1.0 range)
-- **Visual Feedback**: Pads glow red when struck (#ff6b6b color) with 100ms highlight duration
-- **Recording Status**: Real-time "● REC" indicator with note counter during active recording
-
-#### **🎹 Piano Interface**
-
-- **Layout**: Full chromatic keyboard with traditional white (40px width) and black (24px width) key arrangement
-- **Range**: 7 octaves (Octave 1-7) with +/- octave controls for pitch range selection
-- **Synthesis**: Tone.js PolySynth with exponential ADSR envelope and built-in reverb (2.0s decay, 20% wet)
-- **Playing Technique**:
-  - Click individual white keys (C, D, E, F, G, A, B) for natural notes
-  - Click black keys (C#, D#, F#, G#, A#) for sharp/flat notes positioned between white keys
-  - Click multiple keys simultaneously for polyphonic chord playing
-  - Use octave +/- buttons to access different pitch ranges (clamped to 1-7 range)
-- **Visual Feedback**: Keys depress when played (white keys turn gray, black keys lighten) with 100ms animation
-- **Polyphonic Capability**: Unlimited simultaneous notes for rich harmonies and complex chords
-- **Note Display**: Each key shows its note name with octave number for easy identification
-
-#### **🎸 Bass Guitar Interface**
-
-- **Fret Selection**: 13-position fret selector grid (frets 0-12) with current fret highlighting in red
-- **String Configuration**: 4 strings in standard bass tuning using MonoSynth with low-pass filtering:
-  - **G String** (G2): Higher bass notes for melodic lines and walking basslines
-  - **D String** (D2): Mid-range bass notes for harmonic support and chord roots
-  - **A String** (A1): Low-mid bass notes for rhythm foundation and groove
-  - **E String** (E1): Deep bass notes for fundamental low-end and sub-bass
-- **Playing Technique**:
-  - First select fret position using the numbered fret grid (0 = open string)
-  - Click any string button to play that note at the selected fret
-  - Each string displays the current note name calculated from fret position
-- **Visual Feedback**:
-  - Strings glow green (#4CAF50) when played with 100ms highlight duration
-  - Fret selector highlights current position in red (#ff6b6b)
-  - Note names update dynamically based on fret selection and string tuning
-- **Note Calculation**: Automatic chromatic note calculation based on standard bass tuning and fret mathematics with octave handling
-
-### 🏆 **Challenge Mode (Advanced Feature)**
-
-1. **🎯 Select a Challenge**:
-
-   - Click the orange "Challenge Mode" button on any musical post
-   - The ChallengeMode component loads showing the original track details
-   - Challenge track information displays: instrument type, note count, duration, tempo, and collaborator
-   - The system prepares the original TrackData for replication scoring
-
-2. **📚 Study Phase**:
-
-   - Click "Listen to Original" to study the track you need to replicate
-   - The PlaybackEngine plays the original with visual feedback showing note timing and patterns
-   - Listen multiple times to memorize the rhythm and note sequence
-   - Challenge instructions explain the scoring algorithm and tolerance levels
-
-3. **⏰ Ready Phase**:
-
-   - Click "Start Challenge" when ready to attempt replication
-   - 3-second countdown (setInterval with 1000ms) prepares you for recording
-   - The interface switches to recording mode with the appropriate instrument interface
-   - The DhwaniAudioEngine initializes for precise timing capture
-
-4. **🎵 Record Your Attempt**:
-
-   - Play the same instrument as the original track using the matching interface
-   - Try to replicate both the correct notes and precise timing within 100ms tolerance
-   - Visual feedback shows your performance in real-time with note highlighting
-   - AudioRecorder captures NoteEvents with precise timestamps for comparison
-
-5. **📊 Receive Detailed Scoring**:
-
-   - **Note Accuracy**: Percentage of correct notes played (compared to original NoteEvents)
-   - **Timing Precision**: How closely your timing matches the original (100ms tolerance window)
-   - **Overall Score**: Weighted average (70% note accuracy + 30% timing precision)
-   - **Letter Grade**: S (95%+), A+ (90%+), A (85%+), A- (80%+), B+ (75%+), B (70%+), B- (65%+), C+ (60%+), C (55%+), D (<55%)
-   - **Detailed Breakdown**: Shows total notes, correct notes, and timing error analysis
-
-6. **🎧 Compare Recordings**:
-
-   - Listen to both the original and your attempt side-by-side using dual PlaybackEngines
-   - Analyze where you succeeded and where you can improve with visual comparison
-   - Timing differences and missed notes highlighted in the scoring breakdown
-   - Real-time playback comparison shows performance accuracy
-
-7. **🏅 Share Your Achievement**:
-   - Click "Submit Score" to post your ChallengeScore as a Reddit comment via `/api/submit-challenge-score`
-   - Your score appears with grade, accuracy percentages, completion date, and detailed breakdown
-   - Scores stored in Redis with leaderboard functionality for community ranking
-   - Build reputation in the community as a skilled musical replicator with persistent scoring history
-
-### 🎛️ **Advanced Playback & Mixing Controls**
-
-- **▶️ PlaybackEngine Component**:
-
-  - Large play/pause button (10x10 size) for main playback control with state management
-  - Progress bar with scrubbing capability using HTML5 range input for seeking to specific times
-  - Time display showing current position and total duration in MM:SS format with real-time updates
-  - Stop button to return to beginning and halt playback with cleanup of scheduled events
-
-- **🎚️ Track Management System**:
-
-  - **Mute (M)**: Red button to silence individual instrument tracks with Set-based state management
-  - **Solo (S)**: Yellow button to play only selected tracks, muting all others with priority logic
-  - **Track Info**: Each track shows instrument type, note count, duration, and creation timestamp
-  - **Visual Indicators**: Active tracks show green pulse dots (2x2 size) during playback with real-time updates
-
-- **👁️ Visual Feedback System**:
-
-  - Real-time highlighting shows which instruments are currently playing using activeNotes Set
-  - Active notes display on instrument interfaces during playback with 200ms highlight duration
-  - Track activity indicators show which layers are currently producing sound
-  - Progress visualization with percentage completion and smooth transitions
-
-- **🔄 CompositionManager Integration**:
-  - View all collaborators who contributed to the composition with user filtering
-  - Track listing with individual controls for each layer including reordering and duplication
-  - Composition metadata showing title, creation date, and collaboration history with editing capabilities
-  - JSON serialization functionality for advanced users and debugging with compression optimization
-
-### 🎮 **Tips for Musical Success**
-
-- **🎵 Start Simple**: Begin with basic rhythms (simple drum patterns) or melodies (single-note piano lines) before attempting complex compositions - the system handles timing automatically
-- **👂 Listen First**: Always use the PlaybackEngine to listen to existing compositions multiple times before adding your layer - understand the musical context
-- **🎼 Complement, Don't Compete**: Choose instruments that enhance rather than clash with existing parts:
-  - Add drums to melodic compositions for rhythmic foundation
-  - Add bass to drum tracks for harmonic support and low-end
-  - Add piano to rhythm sections for melodic interest and chord progressions
-- **⏰ Keep Time**: Use the visual feedback (glowing instruments, note highlighting) to stay in sync with existing tracks - the DhwaniAudioEngine provides sub-millisecond timing precision
-- **🔄 Practice with Challenge Mode**: Improve your timing and accuracy by replicating existing riffs for scoring - aim for 100ms timing tolerance
-- **🎹 Master Each Instrument**:
-  - **Drums**: Learn basic patterns (kick on 1&3, snare on 2&4) using the 8-pad layout
-  - **Piano**: Practice scales and simple chord progressions with polyphonic capability
-  - **Bass**: Focus on root notes and simple walking basslines using the fret/string system
-- **🤝 Collaborate Thoughtfully**: Engage with other musicians through Reddit comments and build on their musical ideas - each reply creates a new musical version
-- **📱 Mobile & Desktop**: The React interface works seamlessly on both platforms with touch-optimized controls - create music anywhere you have internet access
-- **🎚️ Use Mixing Controls**: Mute/solo tracks in the PlaybackEngine to isolate parts and understand how they fit together
-- **💾 Save Frequently**: Use "Save Composition" regularly to preserve your work as Reddit posts stored in Redis - compositions are automatically validated for size limits
+- **🥁 Beat Blaster (Drum Kit)**: 8-piece electronic drum set with realistic Tone.js synthesis
+- **🎹 Melody Master (Piano)**: Full chromatic keyboard with octave controls and polyphonic support
+- **🎺 Synth Master (Synthesizer)**: Electronic synthesizer with multiple waveforms and effects
+- **🎸 Bass Blast (Bass Guitar)**: 4-string bass with fret selection and authentic bass synthesis
+
+### 🎮 **Game Modes**
+
+- **CREATE Mode**: Record musical loops that become replication challenges for other players
+- **CHART Creator**: Design custom Guitar Hero-style levels with mandatory clearing requirement (70%+ accuracy)
+- **PLAY Challenges**: Two distinct challenge types:
+  - **Replication Challenge**: Recreate musical patterns with sequence-based scoring
+  - **Falling Notes Challenge**: Guitar Hero-style gameplay with 4-lane falling notes
+- **Challenge Selection**: Browse and play community-created challenges with difficulty ratings
+
+### 🏆 **Scoring & Competition**
+
+- **Advanced Scoring System**: Comprehensive performance tracking with accuracy, timing, and combo metrics
+- **Reddit Leaderboards**: Submit scores to Reddit with privacy controls and custom messages
+- **Challenge Analytics**: Detailed performance statistics and community engagement metrics
+- **Personal Best Tracking**: Track improvement over time with detailed score breakdowns\*: Professional Tone.js-based synthesis with automatic audio context management and cross-platform compatibility
+- **Browser Compatibility**: Automatic compatibility checking with graceful degradation for unsupported browsers
+- **Error Handling**: Comprehensive error boundaries and user-friendly error messages with retry functionality
+- **Mobile Optimization**: Touch controls, responsive design, and auto-scrolling for mobile gameplay
+
+### 🎵 **Professional Virtual Instruments**
+
+#### **🥁 Beat Blaster (Drum Kit)**
+
+- **Layout**: Authentic 8-piece drum kit with realistic positioning
+- **Keyboard Controls**: Q, W, E, R (top row), A, S, D (middle row), SPACE (kick)
+- **Drums**: Kick, Snare, Hi-hat, Open Hat, Crash, Ride, Tom1, Tom2
+- **Visual Feedback**: Glowing pads with arcade-style borders when hit
+- **Audio**: Professional MembraneSynth and NoiseSynth synthesis
+
+#### **🎹 Melody Master (Piano)**
+
+- **Layout**: 1.5 octave display with white and black keys
+- **Keyboard Controls**: ASDFGHJK (white keys), WETYUI (black keys)
+- **Octave Controls**: Z (down), X (up) - Range: Octaves 1-7
+- **Features**: Polyphonic chord support, authentic piano sounds with reverb
+- **Audio**: PolySynth with professional piano synthesis
+
+#### **🎺 Synth Master (Synthesizer)**
+
+- **Layout**: Same as piano with electronic synthesis
+- **Controls**: Identical keyboard layout to piano
+- **Features**: Multiple oscillator types and envelope controls
+- **Audio**: Advanced synthesis with configurable waveforms
+
+#### **🎸 Bass Blast (Bass Guitar)**
+
+- **Layout**: 4-string bass with fret selection (0-12 frets)
+- **Keyboard Controls**: 1, 2, 3, 4 for strings; Q/W for fret ±1; A/S for fret ±5
+- **Features**: Authentic bass synthesis with sub-bass emphasis and compression
+- **Audio**: MonoSynth with professional bass synthesis
+
+### 🎮 **Game Modes & Features**
+
+#### **🎸 CREATE Mode**
+
+- Streamlined single-instrument recording system
+- Real-time visual feedback during recording
+- Automatic challenge generation from recorded patterns
+- Reddit post creation for community challenges
+
+#### **🎼 CHART Creator**
+
+- Visual timeline editor for custom Falling Notes levels
+- 4-lane note placement system with precise timing
+- Mandatory chart clearing requirement (70%+ accuracy)
+- BPM configuration and difficulty calculation
+
+#### **🎮 PLAY Challenges**
+
+- Two distinct challenge types: Replication and Falling Notes
+- Community-created and predefined song library
+- Comprehensive scoring system with letter grades
+- Score submission to Reddit leaderboards with privacy controls
+
+### 🏆 **Advanced Systems**
+
+#### **Challenge Analytics**
+
+- Detailed performance tracking and statistics
+- Hit breakdown (Perfect, Great, Good, Miss)
+- Accuracy percentage and combo tracking
+- Personal best tracking and improvement metrics
+
+#### **Score Submission System**
+
+- Privacy controls for score sharing
+- Custom message support for Reddit comments
+- Leaderboard integration with Reddit posts
+- Share options for different score components
+
+#### **Reddit Integration**
+
+- Complete server-side API with Redis storage
+- Automatic post and comment creation
+- Native Reddit threading for collaborative features
+- Cross-platform compatibility within Reddit's ecosystem
+
+### 🎵 **Audio & Performance**
+
+- **Professional Audio Engine**: Tone.js-based synthesis with studio-quality sound generation
+- **Automatic Audio Management**: Smart audio context initialization and cleanup
+- **Cross-Platform Support**: Works on desktop and mobile browsers
+- **Performance Optimization**: Efficient audio processing and memory management
+- **Real-Time Synthesis**: Live audio generation for all virtual instrumentsh electronic synthesis
+- **Keyboard Controls**: ASDFGHJK (white keys), WETYUI (black keys)
+- **Octave Controls**: Z (down), X (up) - Range: Octaves 1-7
+- **Features**: Multiple waveforms, ADSR envelope controls, filter options
+- **Audio**: Advanced synthesis with configurable oscillators and effects
+
+#### **🎸 Bass Blast (Bass Guitar)**
+
+- **Layout**: 4-string bass with fret selection interface
+- **String Controls**: 1, 2, 3, 4 (for strings E, A, D, G)
+- **Fret Controls**: Q/W (±1 fret), A/S (±5 frets), or click fret grid
+- **Features**: 13 fret positions (0-12), authentic bass tuning
+- **Audio**: MonoSynth with sub-bass emphasis and compression
+
+## Technical Architecture
+
+### Audio Engine
+
+- **Tone.js Integration**: Professional Web Audio API synthesis
+- **Real-time Processing**: Low-latency audio with automatic context management
+- **Cross-platform**: Works on desktop and mobile browsers
+- **Instrument Synthesis**: Specialized synths for each instrument type
+
+### Reddit Integration
+
+- **Devvit Platform**: Native Reddit app with server-side API
+- **Redis Storage**: Persistent data storage for compositions and scores
+- **Post Creation**: Automatic Reddit post generation for challenges
+- **Comment Threading**: Jam sessions use Reddit's comment system
+
+### Performance Optimization
+
+- **Lazy Loading**: Instruments load only when needed
+- **Audio Context Management**: Proper cleanup and resource management
+- **Mobile Optimization**: Touch controls and responsive design
+- **Compression**: Efficient data storage and transmission
+
+## Development
+
+### Prerequisites
+
+- Node.js 22.2.0 or higher
+- Reddit Developer Account
+- Devvit CLI installed
+
+### Setup
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Deploy to Reddit
+npm run deploy
+```
+
+### Testing
+
+- Use `npm run dev` to start the development server
+- Access the playtest URL provided by Devvit
+- Test all game modes and instruments
+- Verify audio functionality across browsers
+
+## Contributing
+
+RiffRivals is built for the Reddit community. Contributions are welcome for:
+
+- New instrument types
+- Additional challenge patterns
+- Visual effects and themes
+- Performance optimizations
+- Mobile experience improvements
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+---
+
+**Ready to battle?** 🎮 Join the rhythm revolution and show off your musical skills in the ultimate arcade music arena!hesis
+
+- **Keyboard Controls**: ASDFGHJK (white keys), WETYUI (black keys)
+- **Octave Controls**: Z (down), X (up) - Range: Octaves 1-7
+- **Features**: Multiple waveforms, envelope controls, electronic sounds
+- **Audio**: Advanced synthesis with configurable oscillators
+
+#### **🎸 Bass Blast (Bass Guitar)**
+
+- **Layout**: 4-string bass with fret selection (0-12 frets)
+- **String Controls**: 1, 2, 3, 4 (strings E, A, D, G)
+- **Fret Controls**: Q/W (±1 fret), A/S (±5 frets)
+- **Features**: Authentic bass tuning, sub-bass emphasis
+- **Audio**: MonoSynth with compression and low-pass filtering
+
+## Technical Architecture
+
+### 🛠️ **Built with Modern Web Technologies**
+
+- **Frontend**: React 18 with TypeScript for type-safe component development
+- **Audio Engine**: Tone.js for professional Web Audio API synthesis and effects
+- **Styling**: Tailwind CSS with custom retro/arcade styling and animations
+- **Platform**: Reddit Devvit for native Reddit integration and hosting
+- **Backend**: Express.js server with Redis for data persistence
+- **Build System**: Vite for fast development and optimized production builds
+
+### 🎵 **Professional Audio System**
+
+- **DhwaniAudioEngine**: Custom audio engine built on Tone.js with instrument-specific synthesis
+- **Virtual Instruments**:
+  - DrumKitSynth with MembraneSynth and NoiseSynth for realistic drum sounds
+  - PianoSynth with PolySynth and reverb for authentic piano tones
+  - SynthSynth with configurable oscillators and envelope controls
+  - BassSynth with MonoSynth and sub-bass emphasis
+- **Real-time Audio**: Low-latency note triggering with velocity sensitivity
+- **Cross-platform**: Works on desktop and mobile with automatic audio context management
+
+### 🎮 **Game Architecture**
+
+- **State Management**: React hooks with comprehensive app state management
+- **Game Modes**: Modular UI system supporting multiple game modes (Home, Create, Chart, Play, Jam)
+- **Challenge System**: Advanced scoring algorithms with note accuracy, timing precision, and velocity analysis
+- **Visual Effects**: Custom particle systems, combo effects, and retro styling
+- **Mobile Optimization**: Touch controls, auto-scrolling, and responsive design
+
+### 🎮 **Pro Tips for Success**
+
+#### **🎯 For Replication Challenges**
+
+- **👂 Listen Multiple Times**: Study the original pattern before attempting - use the playback controls to replay sections
+- **⏰ Focus on Timing**: Timing precision is weighted at 30% of total score in the comprehensive scoring system
+- **🎹 Master Your Instrument**: Learn the unique controls for each instrument:
+  - **Drums**: Q,W,E,R,A,S,D,SPACE for different drum pieces
+  - **Piano**: ASDFGHJK for white keys, WETYUI for black keys, Z/X for octave control
+  - **Synth**: Same as piano with electronic synthesis
+  - **Bass**: 1,2,3,4 for strings, Q/W for fret ±1, A/S for fret ±5
+- **📊 Study Analytics**: Review your detailed score breakdown to identify improvement areas (note accuracy, timing precision, velocity accuracy)
+- **🎚️ Use Octave Controls**: For piano and synth, master the Z/X octave controls to access the full range
+
+#### **🎵 For Falling Notes Challenges**
+
+- **👀 Watch the Notes**: Keep your eyes on the falling notes, not your hands or keyboard
+- **🎯 Hit the Line**: Perfect timing is when notes reach the red hit line at the bottom of the screen
+- **🔥 Build Combos**: Consecutive perfect hits multiply your score with explosive visual effects and particle systems
+- **⚡ Stay Relaxed**: Tension leads to mistimed hits - maintain a steady rhythm
+- **🎮 Use Both Controls**: Try both keyboard (A,S,D,F or 1,2,3,4) and touch controls to find what works best for you
+- **📱 Mobile Tips**: Touch controls are optimized for mobile - tap the lane buttons at the bottom when notes reach the hit line
+- **🎵 Audio Cues**: Listen to the audio feedback when hitting notes correctly to improve timing
+
+#### **🎼 For Creating Challenges**
+
+- **🎵 Keep It Accessible**: Create patterns that are challenging but not impossible - consider your target audience
+- **⏰ Consistent Timing**: Ensure your patterns have clear, consistent timing and rhythm
+- **🎚️ Test Thoroughly**: Use the recording preview and playback features before submitting
+- **🏷️ Good Titles**: Give your challenges descriptive, engaging titles to attract players
+- **⚙️ Use Challenge Mode**: Enable challenge mode settings to create structured difficulty levels
+- **🎯 Clear Your Charts**: Remember that Chart Creator requires you to clear your own charts with 70%+ accuracy
+
+#### **🎤 For Jam Sessions**
+
+- **🎵 Listen First**: Always listen to existing layers before adding your own
+- **🎸 Complement**: Choose instruments that complement the existing arrangement
+- **⏰ Stay in Sync**: Record while listening to existing tracks to maintain synchronization
+- **🎨 Be Creative**: Add your unique style while respecting the collaborative nature
+
+## Getting Started
+
+1. **🚀 Launch**: Click "▶ START GAME" on the splash screen to initialize audio
+2. **🏠 Explore**: Navigate the retro home screen and choose your preferred game mode
+3. **🎮 Play**: Start with PLAY mode to try existing challenges and learn the mechanics
+4. **🎸 Create**: Use CREATE mode to record your first musical challenge
+5. **🎼 Design**: Try CHART mode to create custom Guitar Hero-style levels
+6. **🎤 Collaborate**: Join jam sessions to create music with the community
+
+**Ready to become a RiffRival? The arcade awaits your musical skills!** 🎮🎵d Titles\*\*: Create engaging titles that attract players and describe the challenge
+
+- **🎸 Instrument Choice**: Choose the right instrument for your musical idea (drums for rhythm, piano for melody, synth for electronic sounds)
+
+#### **🎤 For Jam Sessions**
+
+- **🎵 Listen First**: Always listen to existing layers using the playback controls before adding your contribution
+- **🎸 Complement, Don't Compete**: Choose instruments that enhance the composition rather than clash with existing layers
+- **⏰ Stay in Sync**: Record while listening to existing tracks for proper synchronization
+- **🎼 Layer Wisely**: Consider the arrangement - add bass lines, harmonies, or rhythmic elements that support the existing music
+
+#### **🎼 For Chart Creation**
+
+- **🎯 Test Your Charts**: You must clear your own chart with 70%+ accuracy before publishing - this ensures quality and prevents impossible charts
+- **📊 Difficulty Balance**: Consider note density, timing complexity, and instrument type when setting difficulty
+- **🎵 Musical Flow**: Create charts that follow the natural rhythm and melody of the music
+- **⏰ Timing Precision**: Use the visual timeline editor to place notes with precise timing
+- **🎮 Playability Testing**: The mandatory clearing requirement forces creators to ensure their charts are actually playable and fair
+
+### 🎵 **Professional Virtual Instruments**
+
+#### **🥁 BEAT BLASTER (Drum Kit)**
+
+- **Layout**: 8 drum pads in realistic drum kit formation with arcade-style visuals and retro styling
+- **Sounds**: Kick, Snare, Hi-Hat, Open Hat, Crash, Ride, Tom 1, Tom 2 with professional Tone.js synthesis
+- **Controls**: Click drum pads or use keyboard (Q, W, E, R, A, S, D, SPACE) with visual key indicators
+- **Visual Feedback**: Pads glow with unique colors when struck, "Press Start 2P" retro font styling, and scanline effects
+- **Audio Engine**: Uses DrumKitSynth with MembraneSynth for tonal drums and NoiseSynth with filtering for cymbals
+
+#### **🎹 MELODY MASTER (Piano)**
+
+- **Layout**: 1.5 octaves of white and black keys with retro arcade styling and proper key positioning
+- **Range**: Octave controls with Z (down) and X (up) keys, range from octave 1-7 with visual octave display
+- **Controls**: ASDFGHJK for white keys, WETYUI for black keys with individual key labeling and visual feedback
+- **Features**: Polyphonic chord support with authentic piano sounds, built-in reverb, and velocity sensitivity
+- **Audio Engine**: Uses PianoSynth with PolySynth for realistic piano sound and reverb effects
+
+#### **🎺 SYNTH MASTER (Synthesizer)**
+
+- **Features**: Electronic synthesizer with multiple waveforms, retro interface, and advanced synthesis
+- **Controls**: Same keyboard layout as piano with electronic synthesis and visual feedback
+- **Audio Engine**: Uses SynthSynth with configurable oscillators, envelope controls (ADSR), and filter options
+- **Perfect for**: Electronic music and modern soundscapes with arcade-style visual feedback and professional sound quality
+
+#### **🎸 BASS BLAST (Bass Guitar)**
+
+- **Layout**: 4-string bass guitar interface with fret selection (0-12 frets) and string tuning (E, A, D, G)
+- **Controls**: 1, 2, 3, 4 for strings; Q/W for fret ±1; A/S for fret ±5
+- **Features**: Authentic bass synthesis using MonoSynth with sub-bass emphasis and compression
+- **Visual Feedback**: String highlighting and fret position display with retro arcade styling
+- **Audio Engine**: Uses BassSynth with low-pass filtering and compressor for consistent bass response
 
 ## Technical Stack
 
 - **[Devvit](https://developers.reddit.com/)**: Reddit's developer platform for native app integration with Redis storage and Reddit API access
-- **[React 19.1.0](https://react.dev/)**: Modern UI framework for interactive components with StrictMode and createRoot
-- **[Tone.js 15.1.3](https://tonejs.github.io/)**: Web Audio API library for music synthesis with PolySynth, MonoSynth, MembraneSynth, and NoiseSynth
-- **[TypeScript 5.8.2](https://www.typescriptlang.org/)**: Type-safe development with strict project references and shared types
-- **[Vite 6.2.4](https://vite.dev/)**: Fast build tool and development server with client/server separation
-- **[Express 5.1.0](https://expressjs.com/)**: Server-side API for Reddit integration with JSON body parsing and CORS handling
-- **[Tailwind CSS 4.1.6](https://tailwindcss.com/)**: Utility-first styling with responsive design and component-based architecture
+- **[React 18+](https://react.dev/)**: Modern UI framework for interactive components with hooks and functional components
+- **[Tone.js](https://tonejs.github.io/)**: Web Audio API library for professional music synthesis and audio engine implementation
+- **[TypeScript](https://www.typescriptlang.org/)**: Type-safe development with strict typing for musical data structures
+- **[Vite](https://vite.dev/)**: Fast build tool and development server with hot module replacement
+- **[Express](https://expressjs.com/)**: Server-side API for Reddit integration with comprehensive endpoint structure
+- **[Press Start 2P Font](https://fonts.google.com/specimen/Press+Start+2P)**: Retro arcade-style typography for authentic gaming aesthetic
+- **[Redis](https://redis.io/)**: Data persistence layer via Devvit for storing compositions, scores, and leaderboards
+
+### Architecture Overview
+
+- **Client-Side**: React application with Tone.js audio engine, professional virtual instruments, and arcade-style UI components
+- **Server-Side**: Express API with Redis storage, Reddit integration, and comprehensive challenge/scoring system
+- **Audio Engine**: DhwaniAudioEngine with specialized synthesizers (DrumKitSynth, PianoSynth, SynthSynth, BassSynth) for professional sound quality
+- **Game Modes**: Multiple distinct modes including CREATE, CHART CREATOR, FALLING NOTES, REPLICATION challenges, JAM SESSIONS, and REMIX mode
+- **Visual Design**: Retro arcade aesthetic with neon grid backgrounds, scanline effects, authentic gaming visual feedback, and mobile-responsive design
+- **Quality Control**: Mandatory chart clearing system ensures all community-created challenges are playable
 
 ## Getting Started for Developers
 
@@ -344,32 +741,23 @@ The app features professional browser-based virtual instruments built with React
    npm install
    ```
 
-   This automatically runs `npm run build` via postinstall script
-
 2. **Development Server**:
 
    ```bash
    npm run dev
    ```
 
-   This starts three concurrent processes:
+   This starts client/server watchers and Devvit playtest environment
 
-   - Client build watcher (`vite build --watch` in src/client)
-   - Server build watcher (`vite build --watch` in src/server)
-   - Devvit playtest environment (`devvit playtest`)
-
-3. **Access Your App**: Open the provided Reddit playtest URL (typically `https://www.reddit.com/r/riffrivals_dev?playtest=riffrivals`) to test your app live on Reddit with full audio functionality
+3. **Access Your App**: Open the provided Reddit playtest URL to test live on Reddit
 
 ## Development Commands
 
-- `npm run dev`: Starts concurrent development with client/server watchers and Devvit playtest
-- `npm run build`: Builds both client (`dist/client`) and server (`dist/server`) bundles for production
-- `npm run build:client`: Builds only client bundle with Vite
-- `npm run build:server`: Builds only server bundle with Vite (CommonJS output)
-- `npm run deploy`: Uploads new version to Reddit (`npm run build && devvit upload`)
-- `npm run launch`: Publishes app for Reddit review and approval (`npm run build && npm run deploy && devvit publish`)
+- `npm run dev`: Starts concurrent development with watchers and Devvit playtest
+- `npm run build`: Builds both client and server bundles for production
+- `npm run deploy`: Uploads new version to Reddit
+- `npm run launch`: Publishes app for Reddit review and approval
 - `npm run check`: Runs TypeScript checks, ESLint fixes, and Prettier formatting
-- `npm run type-check`: Runs TypeScript compilation check across all project references
 
 ## Project Structure
 
@@ -378,75 +766,61 @@ src/
 ├── client/                 # React frontend (runs in Reddit webview)
 │   ├── components/        # UI components
 │   │   ├── instruments/   # Virtual instrument interfaces
-│   │   │   ├── InstrumentSelector.tsx  # Instrument switching component
-│   │   │   ├── DrumKit.tsx            # 8-piece drum kit interface
-│   │   │   ├── Piano.tsx              # Polyphonic piano keyboard
-│   │   │   └── Bass.tsx               # 4-string bass guitar interface
-│   │   ├── AudioRecorder.tsx          # Recording system with timing
-│   │   ├── PlaybackEngine.tsx         # Multi-track playback with mixing
-│   │   ├── CompositionManager.tsx     # Track management and metadata
-│   │   ├── RiffPost.tsx              # Main post display component
-│   │   ├── JamReply.tsx              # Collaborative reply interface
-│   │   └── ChallengeMode.tsx         # Skill challenge system
+│   │   ├── SimplifiedCreateMode.tsx   # Single-instrument recording
+│   │   ├── FallingNotesChallenge.tsx  # Guitar Hero-style gameplay
+│   │   ├── ChartEditor.tsx            # Chart creation interface
+│   │   ├── PlaybackEngine.tsx         # Multi-track playback
+│   │   ├── RiffPost.tsx              # Main post display
+│   │   └── JamReply.tsx              # Collaborative reply interface
 │   ├── audio/            # Tone.js audio engine
-│   │   ├── DhwaniAudioEngine.ts      # Main audio engine with IAudioEngine
-│   │   ├── DrumKitSynth.ts           # MembraneSynth + NoiseSynth drums
-│   │   ├── PianoSynth.ts             # PolySynth with reverb
-│   │   └── BassSynth.ts              # MonoSynth with filtering
-│   ├── utils/            # Utility functions
-│   │   └── compositionUtils.ts       # Serialization and validation
-│   ├── main.tsx          # React entry point with StrictMode
-│   ├── App.tsx           # Main application component with routing
-│   └── index.html        # HTML template with viewport meta
+│   │   ├── DhwaniAudioEngine.ts      # Main audio engine
+│   │   ├── DrumKitSynth.ts           # Drum synthesis
+│   │   ├── PianoSynth.ts             # Piano synthesis
+│   │   └── SynthSynth.ts             # Synthesizer
+│   ├── main.tsx          # React entry point
+│   ├── App.tsx           # Main application component
+│   └── index.html        # HTML template
 ├── server/               # Express backend (Reddit integration)
 │   ├── index.ts          # Main server with API endpoints
-│   ├── core/             # Business logic
-│   │   └── post.ts       # Post creation functionality
 │   └── utils/            # Server utilities
 │       ├── redisUtils.ts # Redis storage operations
 │       └── postUtils.ts  # Reddit post generation
 ├── shared/               # Shared types and constants
 │   ├── types/           # TypeScript interfaces
-│   │   ├── music.ts     # Musical data structures
-│   │   ├── audio.ts     # Audio engine interfaces
-│   │   ├── api.ts       # API request/response types
-│   │   └── ui.ts        # UI component prop types
-│   ├── constants/       # Configuration constants
-│   │   ├── audio.ts     # Audio synthesis configuration
-│   │   └── ui.ts        # UI styling and layout constants
-│   └── index.ts         # Main export file for shared code
-├── devvit.json          # Devvit app configuration with post/server entry points
-└── package.json         # Dependencies and build scripts with concurrent dev
+│   └── constants/       # Configuration constants
+├── devvit.json          # Devvit app configuration
+└── package.json         # Dependencies and build scripts
 ```
 
 ## Features Status
 
 ### ✅ **Completed Features**
 
-- **Virtual Instrument Interfaces**: Complete DrumKit, Piano, and Bass components with Tone.js synthesis
-- **Real-Time Audio Synthesis**: DhwaniAudioEngine with MembraneSynth, PolySynth, MonoSynth, and NoiseSynth
-- **Recording and Playback System**: AudioRecorder and PlaybackEngine with precise timing and multi-track support
-- **Multi-Track Composition Management**: CompositionManager with track layering, muting, soloing, and metadata
-- **Visual Feedback System**: Real-time note highlighting, instrument glowing, and playback indicators
-- **Instrument Switching**: InstrumentSelector with smooth transitions and state management
-- **Musical Data Serialization**: Complete TrackData and CompositionData validation with compression
-- **Reddit Integration**: Full server-side API with post creation, jam replies, and composition storage
-- **Challenge Mode**: Complete scoring system with note accuracy and timing precision analysis
-- **Collaborative Workflow**: Full jam session system with threaded musical conversations
+- **Complete Virtual Instrument Suite**: DrumKit, Piano, and Synthesizer with Tone.js synthesis
+- **Advanced Audio Engine**: Professional sound quality with real-time synthesis
+- **Simplified Create Mode**: Single-instrument recording system for creating challenges
+- **Comprehensive Challenge Modes**: Both Replication and Falling Notes challenges
+- **Advanced Scoring System**: Note accuracy, timing precision, and letter grades
+- **Visual Feedback System**: Real-time note highlighting and performance indicators
+- **Reddit Integration**: Complete server-side API with post creation and storage
+- **Chart Creator Mode**: Custom beatmap creation with testing requirements
+- **Auto-Start Challenges**: Seamless challenge loading from Reddit posts
+- **Browser Compatibility**: Automatic compatibility checking and graceful degradation
+- **Retro UI Design**: Arcade-style interface with pixel-perfect styling
 
 ### 🚧 **In Development**
 
 - **Mobile Touch Optimization**: Enhanced touch controls for mobile Reddit users
-- **Performance Optimization**: Audio context management and memory cleanup improvements
-- **Error Handling Enhancement**: Comprehensive error recovery and user feedback systems
+- **Advanced Leaderboards**: Global rankings and achievement tracking
+- **Performance Analytics**: Detailed performance tracking and improvement suggestions
 
 ### 📋 **Planned Features**
 
-- **Additional Instrument Types**: Guitar, synthesizer, and percussion expansion
-- **Advanced Mixing Controls**: EQ, effects, and professional mixing capabilities
-- **Community Leaderboards**: Global challenge rankings and achievement systems
-- **Musical Notation Display**: Visual sheet music representation of compositions
-- **Export Functionality**: Audio file export and sharing capabilities
+- **Remix Mode**: Take existing compositions and add creative layers and modifications
+- **Advanced Mixing Controls**: EQ, effects, and professional mixing capabilities for compositions
+- **Community Features**: Enhanced social features, friend challenges, and collaborative creation
+- **Export Functionality**: Audio file export and sharing capabilities beyond Reddit
+- **Additional Song Content**: Expanded library with more genres and difficulty levels
 
 ## Contributing
 
@@ -471,4 +845,63 @@ Built with ❤️ for the Reddit music community. Powered by Devvit, Tone.js, an
 
 ---
 
-**Ready to make music together? Install Dhwani in your subreddit and start jamming! 🎵**
+## Current Game State
+
+RiffRivals is a fully functional arcade music game featuring:
+
+- **🎮 Complete Game Experience**: Multiple distinct game modes (Home, Create, Chart Creator, Play, Jam Session, Remix) with seamless navigation and retro arcade styling
+- **🎵 Professional Virtual Instruments**: Three fully-featured instruments (BEAT BLASTER Drums, MELODY MASTER Piano, SYNTH MASTER) with authentic Tone.js synthesis and advanced audio engine
+- **🎯 Comprehensive Challenge System**: Multiple challenge types including replication challenges (recreate musical patterns) and falling notes challenges (Guitar Hero-style rhythm gameplay)
+- **🎼 Advanced Chart Creator**: Visual beatmap editor for designing custom Falling Notes levels with precise note placement, BPM control, mandatory testing requirements, and automatic difficulty calculation
+- **🎤 Collaborative Jam Sessions**: Multi-user musical collaboration through Reddit's threading system with real-time composition layering and recent sessions display
+- **🔄 Remix System**: Take existing challenges and create variations with new layers and modifications
+- **🏆 Deep Reddit Integration**: All challenges become Reddit posts with voting, comments, leaderboards, analytics, and community interaction
+- **🎨 Retro Arcade Aesthetic**: Pixel-perfect UI with "Press Start 2P" font, neon grid backgrounds, scanline effects, retro styling, and classic arcade visual effects
+- **📱 Cross-Platform Support**: Works on desktop and mobile browsers with touch-optimized controls, responsive design, and adaptive interfaces
+- **⚡ Auto-Start Challenges**: When users click on challenge posts, the game automatically detects challenge type and loads the appropriate mode
+- **🎚️ Advanced Audio Engine**: Real-time synthesis with professional-grade sound quality using Tone.js, intelligent audio context management, and comprehensive browser compatibility checks
+- **📊 Comprehensive Scoring**: Advanced scoring algorithms with note accuracy, timing precision, combo tracking, performance analytics, and letter grades (S, A, B, C, D)
+- **📈 Analytics Dashboard**: Detailed performance tracking, improvement suggestions, and community engagement metrics
+- **🎭 Dynamic Splash Screen**: Animated introduction with "🎮 RiffRivals" branding, "ARCADE MUSIC BATTLE ARENA" subtitle, and "🚀 PLAY GAME" button for audio initialization
+
+### Game Flow
+
+1. **Dynamic Splash Screen**: Animated introduction with "🎮 RiffRivals" branding, "ARCADE MUSIC BATTLE ARENA" subtitle, and "🚀 PLAY GAME" button for audio initialization
+2. **Retro Home Screen**: Arcade-styled main menu with neon grid background, mode selection cards (CREATE, CHART, PLAY), and recent jam sessions display for easy access to ongoing collaborations
+3. **Simplified Create Mode**: Single-instrument recording system with real-time feedback, preview capabilities, and Reddit post generation
+4. **Advanced Chart Creator**: Visual timeline editor with lane-based note placement, mandatory chart clearing requirements, and community publishing
+5. **Intelligent Play System**: Automatic challenge detection, mode switching, and community challenge browsing with instrument layer selection
+6. **Collaborative Jam Sessions**: Multi-layered musical composition through Reddit's comment threading with synchronization tools and recent sessions tracking prominently displayed on home screen
+7. **Remix Mode**: Creative variations of existing challenges with new layers and modifications
+8. **Comprehensive Scoring & Analytics**: Detailed performance feedback, combo tracking, and community competition tracking
+
+### Technical Architecture
+
+- **Client-Side**: React 18+ with TypeScript, Vite build system, and Tone.js audio engine
+- **Server-Side**: Express.js with Redis persistence and Reddit API integration
+- **Audio Processing**: Professional-grade Web Audio API synthesis with real-time performance optimization
+- **Data Management**: Compressed musical data storage with 4MB Reddit post limit optimization
+- **Community Integration**: Native Reddit posting, commenting, voting, and threading for musical collaboration
+- **Smart Challenge Detection**: Automatic detection of challenge types and jam sessions from Reddit post data
+
+The game provides a complete musical gaming experience within Reddit's ecosystem, combining creativity, competition, community collaboration, and technical innovation in a revolutionary arcade-style format that transforms Reddit into a musical battleground!
+
+**Current Status**: RiffRivals is fully functional with all core features implemented, including professional virtual instruments, multiple challenge types, collaborative jam sessions, chart creation tools, and comprehensive Reddit integration. The game features a polished retro arcade aesthetic and works seamlessly across desktop and mobile platforms.
+
+---
+
+## 🎮 **Game Summary**
+
+**RiffRivals** is a fully functional arcade music game that runs natively within Reddit posts. Players can:
+
+1. **🎸 CREATE** - Record musical loops using professional virtual instruments (drums, piano, synthesizer)
+2. **🎼 CHART** - Design custom Guitar Hero-style levels with a visual timeline editor
+3. **🎮 PLAY** - Take on two types of challenges:
+   - **Replication Challenges**: Listen and recreate musical patterns note-for-note
+   - **Falling Notes Challenges**: Guitar Hero-style gameplay with 4-lane rhythm action
+4. **🎤 COLLABORATE** - Join jam sessions and add musical layers to community compositions
+5. **🏆 COMPETE** - Submit scores, climb leaderboards, and earn recognition in the community
+
+The game features a retro arcade aesthetic with "Press Start 2P" font styling, neon grid backgrounds, scanline effects, and explosive visual feedback. All musical data is stored in Reddit posts using Redis, making every creation and achievement part of Reddit's permanent content ecosystem.
+
+**Ready to battle with beats? Install RiffRivals in your subreddit and start the musical mayhem! 🎵🎮**

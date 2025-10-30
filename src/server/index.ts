@@ -195,11 +195,11 @@ router.post<{}, CreateRiffResponse | ApiErrorResponse, CreateRiffRequest>(
           subredditName: context.subredditName!,
           title: postTitle,
           splash: {
-            appDisplayName: 'RiffRivals',
+            appDisplayName: '🎮 RiffRivals',
             backgroundUri: 'splash.png',
-            heading: `🎵 Jam Session by u/${username}`,
-            buttonLabel: 'Join Jam Session',
-            description: `${preview}\n\n🎤 Collaborative jam session - add your own layer!`,
+            heading: `🎵 ✨ JAM SESSION ✨ 🎵\nby u/${username}`,
+            buttonLabel: '🎤 JOIN THE JAM! 🎤',
+            description: `${preview}\n\n� COLLAbBORATIVE MUSIC CREATION 🌟\n🎶 Add your own layer to this jam! 🎶\n🎵 Let's make music together! 🎵`,
             appIconUri: 'default-icon.png',
           },
           textFallback: {
@@ -240,9 +240,8 @@ router.post<{}, CreateRiffResponse | ApiErrorResponse, CreateRiffRequest>(
           splash: {
             appDisplayName: 'RiffRivals',
             backgroundUri: 'splash.png',
-            heading: `Replication Challenge by u/${username}`,
-            buttonLabel: 'Play Challenge',
-            description: preview,
+            heading: `MUSIC CHALLENGE \nby u/${username}`,
+            buttonLabel: 'ACCEPT CHALLENGE! ',
             appIconUri: 'default-icon.png',
           },
           textFallback: {
@@ -1018,11 +1017,11 @@ router.post<{}, CreateChartResponse | ApiErrorResponse, CreateChartRequest>(
         subredditName: context.subredditName!,
         title: postTitle,
         splash: {
-          appDisplayName: 'RiffRivals',
+          appDisplayName: '🎮 RiffRivals',
           backgroundUri: 'splash.png',
-          heading: `Falling Tiles Chart by u/${username}`,
-          buttonLabel: 'Play Chart',
-          description: preview,
+          heading: `🎼 ⚡ FALLING TILES CHART ⚡ 🎼\nby u/${username}`,
+          buttonLabel: '🎵 PLAY CHART! 🎵',
+          description: `${preview}\n\n🎯 CUSTOM RHYTHM CHALLENGE! 🎯\n🎶 Hit the notes as they fall! 🎶\n⭐ Master the rhythm! ⭐`,
           appIconUri: 'default-icon.png',
         },
         textFallback: {
@@ -1198,11 +1197,11 @@ router.post<{}, CreateRemixResponse | ApiErrorResponse, CreateRemixRequest>(
         subredditName: context.subredditName!,
         title: postTitle,
         splash: {
-          appDisplayName: 'RiffRivals',
+          appDisplayName: '🎮 RiffRivals',
           backgroundUri: 'splash.png',
-          heading: `Remix by u/${username}`,
-          buttonLabel: 'Play Remix',
-          description: preview,
+          heading: `🔄 ✨ REMIX CREATION ✨ 🔄\nby u/${username}`,
+          buttonLabel: '🎧 PLAY REMIX! 🎧',
+          description: `${preview}\n\n🎵 CREATIVE REMIX CHALLENGE! 🎵\n🔥 A fresh take on the original! 🔥\n🌟 Experience the remix! 🌟`,
           appIconUri: 'default-icon.png',
         },
         textFallback: {

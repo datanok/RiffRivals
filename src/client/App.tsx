@@ -54,6 +54,8 @@ import { DynamicSplashScreen } from './components/DynamicSplashScreen.js';
 import { playButtonClick } from './utils/audioFeedback.js';
 import { createDefaultChallenges } from './utils/improved_predefined_songs.js';
 import type { ChartData } from '../shared/types/music.js';
+// import { ModChallengeLoader } from './components/ModChallengeLoader.js';
+import { isModerator } from './utils/modUtils.js';
 
 // Initialize predefined challenges using the improved system
 const initializeChallenges = () => {
@@ -88,6 +90,7 @@ const calculateChallengeMetadata = (
   const instrumentWeights: Record<InstrumentType, number> = {
     drums: 1.0,
     piano: 1.2,
+    bass: 1.1,
     synth: 1.3,
   };
 
@@ -158,6 +161,8 @@ type AppState = {
   jamSessionComposition: CompositionData | null;
   // Jam creation state
   jamCreationComposition: CompositionData | null;
+  // Mod challenge loader state
+  showModChallengeLoader: boolean;
 };
 
 // Predefined songs for challenge mode
@@ -466,7 +471,7 @@ const FallingNotesMode: React.FC = () => {
     return (
       <div className="max-w-4xl mx-auto p-6">
         <FallingNotesChallenge
-          instrument="drums"
+          instrument="piano"
           onNoteHit={handleNoteHit}
           onScoreUpdate={handleScoreUpdate}
           difficulty={selectedSongData?.difficulty || difficulty}
@@ -621,7 +626,7 @@ const CreateMode: React.FC<{ onCompositionCreate: (composition: CompositionData)
     }>
   >([]);
   const [recordingStartTime, setRecordingStartTime] = useState<number>(0);
-  const [currentInstrument, setCurrentInstrument] = useState<InstrumentType>('drums');
+  const [currentInstrument, setCurrentInstrument] = useState<InstrumentType>('piano');
   const [gameScore, setGameScore] = useState({ combo: 0, streak: 0 });
 
   // Challenge mode state
@@ -1541,7 +1546,7 @@ const RetroHomeScreen: React.FC<{
         )}
 
         {/* Recent Jam Sessions */}
-        <RecentJamSessions
+        {/* <RecentJamSessions
           onJoinJam={(postId) => {
             // This will call handleStartJamSession with the postId
             const event = new CustomEvent('riffrivals:joinJam', {
@@ -1549,7 +1554,7 @@ const RetroHomeScreen: React.FC<{
             });
             window.dispatchEvent(event);
           }}
-        />
+        /> */}
 
         {/* Info Box with retro styling */}
         <div
@@ -1743,6 +1748,8 @@ export const App = () => {
     jamSessionComposition: null,
     // Jam creation state
     jamCreationComposition: null,
+    // Mod challenge loader state
+    showModChallengeLoader: false,
   });
 
   const [loading, setLoading] = useState(true);
@@ -1970,9 +1977,22 @@ export const App = () => {
 
                     // Determine the target mode based on challenge type
                     const challengeType =
-                      finalComposition.metadata.challengeSettings?.challengeType || 'falling_tiles';
+                      finalComposition.metadata.challengeSettings?.challengeType;
 
                     console.log('🔵 [REDIRECT] Challenge type extracted:', challengeType);
+
+                    // If challengeType is null or undefined, redirect to home
+                    if (!challengeType) {
+                      console.log('🔵 [REDIRECT] No challengeType found, redirecting to home');
+                      setAppState((prev) => ({
+                        ...prev,
+                        mode: 'home',
+                        currentPostId: null,
+                        currentComposition: null,
+                      }));
+                      return;
+                    }
+
                     console.log('🔵 [REDIRECT] Challenge type comparison:', {
                       value: challengeType,
                       isFallingTiles: challengeType === 'falling_tiles',
@@ -2012,13 +2032,13 @@ export const App = () => {
                     });
                     console.log('🔵 [REDIRECT] setAppState called successfully');
                   } else {
-                    console.log(
-                      '🔵 No composition found in response, navigating to challenge_select'
-                    );
-                    // Fallback to challenge_select if composition not found
+                    console.log('🔵 No composition found in response, redirecting to home');
+                    // Redirect to home if composition not found
                     setAppState((prev) => ({
                       ...prev,
-                      mode: 'challenge_select',
+                      mode: 'home',
+                      currentPostId: null,
+                      currentComposition: null,
                     }));
                   }
                 } else if (compositionResponse.status === 404) {
@@ -2245,6 +2265,7 @@ export const App = () => {
       ...prev,
       challengeScore: score,
       showScoreSubmission: true,
+      isChallengeActive: false, // Stop the challenge
     }));
   }, []);
 
@@ -2268,11 +2289,11 @@ export const App = () => {
           const data = await response.json();
           console.log('Score submitted successfully:', data);
 
-          // Move to results screen
+          // Move back to challenge selection
           setAppState((prev) => ({
             ...prev,
             showScoreSubmission: false,
-            mode: 'challenge_results',
+            mode: 'challenge_select',
           }));
         } else {
           console.error('Failed to submit score:', response.status);
@@ -2291,7 +2312,18 @@ export const App = () => {
     setAppState((prev) => ({
       ...prev,
       showScoreSubmission: false,
-      mode: 'challenge_results',
+      mode: 'challenge_select', // Go back to challenge selection
+    }));
+  }, []);
+
+  const handlePlayAgain = useCallback(() => {
+    // Reset challenge state and restart the same challenge
+    setAppState((prev) => ({
+      ...prev,
+      showScoreSubmission: false,
+      challengeScore: null,
+      isChallengeActive: true,
+      // Keep the same challenge and mode
     }));
   }, []);
 
@@ -2401,6 +2433,33 @@ export const App = () => {
     }));
   }, []);
 
+  // Mod challenge loader handlers
+  const handleShowModChallengeLoader = useCallback(() => {
+    setAppState((prev) => ({ ...prev, showModChallengeLoader: true }));
+  }, []);
+
+  const handleHideModChallengeLoader = useCallback(() => {
+    setAppState((prev) => ({ ...prev, showModChallengeLoader: false }));
+  }, []);
+
+  const handleModChallengeLoad = useCallback(
+    (composition: CompositionData, challengeType: 'falling_tiles' | 'replication') => {
+      console.log('Loading mod challenge:', composition.metadata.title, 'type:', challengeType);
+
+      // Add to available challenges and select it
+      setAppState((prev) => ({
+        ...prev,
+        selectedChallenge: composition,
+        availableChallenges: [composition, ...prev.availableChallenges],
+        currentChallengeType: challengeType,
+        mode: challengeType === 'falling_tiles' ? 'falling_notes' : 'replication_challenge',
+        isChallengeActive: false,
+        showModChallengeLoader: false,
+      }));
+    },
+    []
+  );
+
   const handleChallengeRetry = useCallback(() => {
     setAppState((prev) => ({
       ...prev,
@@ -2435,23 +2494,126 @@ export const App = () => {
   // Splash Screen Component
   if (showSplash) {
     return (
-      <div
-        className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center"
-        style={{ fontFamily: "'Press Start 2P', 'Courier New', monospace" }}
-      >
-        <div className="text-center p-8">
-          <h1
-            className="text-6xl font-bold text-white mb-8 drop-shadow-lg animate-pulse"
-            style={{ textShadow: '4px 4px 0px #ff6b6b, 8px 8px 0px #4ecdc4' }}
-          >
-            🎮 RiffRivals
-          </h1>
-          <p className="text-xl text-purple-200 mb-8" style={{ fontSize: '12px' }}>
-            ARCADE MUSIC BATTLE ARENA
-          </p>
+      <div className="min-h-screen bg-black flex items-center justify-center p-4 overflow-hidden relative">
+        {/* Animated pixel background */}
+        <div className="absolute inset-0 opacity-20">
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: `
+        linear-gradient(0deg, transparent 24%, rgba(138, 43, 226, .3) 25%, rgba(138, 43, 226, .3) 26%, transparent 27%, transparent 74%, rgba(138, 43, 226, .3) 75%, rgba(138, 43, 226, .3) 76%, transparent 77%, transparent),
+        linear-gradient(90deg, transparent 24%, rgba(59, 130, 246, .3) 25%, rgba(59, 130, 246, .3) 26%, transparent 27%, transparent 74%, rgba(59, 130, 246, .3) 75%, rgba(59, 130, 246, .3) 76%, transparent 77%, transparent)
+      `,
+              backgroundSize: '50px 50px',
+            }}
+          ></div>
+        </div>
+
+        {/* Floating pixels animation */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {[...Array(20)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute w-2 h-2 bg-purple-500 opacity-50"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animation: `float ${3 + Math.random() * 4}s ease-in-out infinite`,
+                animationDelay: `${Math.random() * 2}s`,
+              }}
+            ></div>
+          ))}
+        </div>
+
+        <style>{`
+    @keyframes float {
+      0%, 100% { transform: translateY(0px) translateX(0px); }
+      50% { transform: translateY(-20px) translateX(10px); }
+    }
+    @keyframes glitch {
+      0%, 100% { transform: translate(0); }
+      33% { transform: translate(-2px, 2px); }
+      66% { transform: translate(2px, -2px); }
+    }
+    @keyframes scanline {
+      0% { top: 0%; }
+      100% { top: 100%; }
+    }
+    @keyframes pulse-border {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+      50% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+    }
+  `}</style>
+
+        {/* Scanline effect */}
+        <div
+          className="absolute left-0 right-0 h-1 bg-gradient-to-b from-transparent via-cyan-400 to-transparent opacity-20 pointer-events-none"
+          style={{ animation: 'scanline 4s linear infinite' }}
+        ></div>
+
+        <div className="relative z-10 text-center max-w-2xl w-full px-4">
+          {/* Title with 8-bit styling */}
+          <div className="mb-8 sm:mb-12">
+            <div
+              className="inline-block text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-bold mb-2 sm:mb-4"
+              style={{
+                fontFamily: "'Courier New', monospace",
+                color: '#00ff00',
+                textShadow: `
+            3px 3px 0px #ff00ff,
+            6px 6px 0px #00ffff,
+            9px 9px 0px rgba(0,0,0,0.5)
+          `,
+                letterSpacing: '0.1em',
+                animation: 'glitch 3s infinite',
+              }}
+            >
+              🎮
+            </div>
+            <h1
+              className="text-3xl sm:text-5xl md:text-6xl font-bold leading-tight"
+              style={{
+                fontFamily: "'Courier New', monospace",
+                color: '#00ff00',
+                textShadow: `
+            2px 2px 0px #ff00ff,
+            4px 4px 0px #00ffff,
+            6px 6px 0px rgba(0,0,0,0.5)
+          `,
+                letterSpacing: '0.05em',
+              }}
+            >
+              RIFF
+              <br className="sm:hidden" />
+              RIVALS
+            </h1>
+          </div>
+
+          {/* Subtitle */}
+          <div className="mb-8 sm:mb-12">
+            <p
+              className="text-xs sm:text-sm md:text-base text-cyan-400 mb-2 tracking-widest"
+              style={{ fontFamily: "'Courier New', monospace" }}
+            >
+              ═══════════════════════
+            </p>
+            <p
+              className="text-sm sm:text-lg md:text-xl text-yellow-300 tracking-wider px-2"
+              style={{ fontFamily: "'Courier New', monospace" }}
+            >
+              ARCADE MUSIC BATTLE ARENA
+            </p>
+            <p
+              className="text-xs sm:text-sm md:text-base text-cyan-400 mt-2 tracking-widest"
+              style={{ fontFamily: "'Courier New', monospace" }}
+            >
+              ═══════════════════════
+            </p>
+          </div>
+
+          {/* Play button */}
           <button
             onClick={async () => {
-              // Initialize audio context on user interaction
               try {
                 const AudioContextClass =
                   window.AudioContext ||
@@ -2471,19 +2633,50 @@ export const App = () => {
               }
               setShowSplash(false);
             }}
-            className="px-8 py-4 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-xl font-bold hover:from-green-600 hover:to-blue-600 transition-all transform hover:scale-105 shadow-xl text-lg"
+            className="relative px-6 py-3 sm:px-10 sm:py-4 md:px-12 md:py-5 bg-green-500 text-white font-bold transition-all transform hover:scale-105 active:scale-95 text-sm sm:text-base md:text-lg"
             style={{
-              fontFamily: "'Press Start 2P', monospace",
-              fontSize: '16px',
-              border: '4px solid #333',
-              boxShadow: '8px 8px 0px #333',
-              borderRadius: '0px',
+              fontFamily: "'Courier New', monospace",
+              border: '4px solid #000',
+              boxShadow: '6px 6px 0px #000, 0 0 20px rgba(34, 197, 94, 0.5)',
+              animation: 'pulse-border 2s infinite',
+              imageRendering: 'pixelated',
             }}
           >
-            🚀 PLAY GAME
+            <span className="relative z-10">▶ START GAME</span>
           </button>
-          <p className="text-purple-300 mt-4 text-sm" style={{ fontSize: '8px' }}>
-            Click to start and enable audio
+
+          {/* Instructions */}
+          <div className="mt-6 sm:mt-8">
+            <p
+              className="text-xs sm:text-sm text-purple-300 px-4 animate-pulse"
+              style={{ fontFamily: "'Courier New', monospace" }}
+            >
+              ▼ PRESS TO ENABLE AUDIO ▼
+            </p>
+          </div>
+
+          {/* Retro corner decorations */}
+          <div className="absolute top-4 left-4 text-cyan-400 text-xl sm:text-2xl opacity-50">
+            ┌─
+          </div>
+          <div className="absolute top-4 right-4 text-cyan-400 text-xl sm:text-2xl opacity-50">
+            ─┐
+          </div>
+          <div className="absolute bottom-4 left-4 text-cyan-400 text-xl sm:text-2xl opacity-50">
+            └─
+          </div>
+          <div className="absolute bottom-4 right-4 text-cyan-400 text-xl sm:text-2xl opacity-50">
+            ─┘
+          </div>
+        </div>
+
+        {/* Bottom credits */}
+        <div className="absolute bottom-4 left-0 right-0 text-center">
+          <p
+            className="text-xs text-gray-600 px-4"
+            style={{ fontFamily: "'Courier New', monospace" }}
+          >
+            © 2025 • INSERT COIN TO CONTINUE
           </p>
         </div>
       </div>
@@ -2614,12 +2807,23 @@ export const App = () => {
                         <button
                           onClick={() => {
                             playButtonClick();
-                            handleModeChange('challenge_select');
+                            // If we're in a challenge mode, go back to challenge select
+                            // Otherwise go to challenge select
+                            if (
+                              appState.mode === 'replication_challenge' ||
+                              appState.mode === 'falling_notes'
+                            ) {
+                              handleModeChange('challenge_select');
+                            } else {
+                              handleModeChange('challenge_select');
+                            }
                           }}
                           className={`
                         px-3 sm:px-4 py-2 text-xs font-bold transition-all transform hover:scale-105 shadow-lg
                         ${
-                          appState.mode === 'challenge_select' || appState.mode === 'falling_notes'
+                          appState.mode === 'challenge_select' ||
+                          appState.mode === 'falling_notes' ||
+                          appState.mode === 'replication_challenge'
                             ? 'bg-gradient-to-r from-orange-400 to-red-500 text-white'
                             : 'bg-gradient-to-r from-gray-600 to-gray-700 text-gray-200 hover:from-gray-500 hover:to-gray-600'
                         }
@@ -2632,7 +2836,10 @@ export const App = () => {
                             borderRadius: '0px',
                           }}
                         >
-                          PLAY
+                          {appState.mode === 'replication_challenge' ||
+                          appState.mode === 'falling_notes'
+                            ? 'BACK'
+                            : 'PLAY'}
                         </button>
                       </div>
                     </div>
@@ -2666,14 +2873,41 @@ export const App = () => {
                       const response = await fetch('/api/create-riff', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ trackData: track, title }),
+                        body: JSON.stringify({
+                          trackData: track,
+                          title,
+                          challengeType: 'replication', // Explicitly set as replication challenge
+                        }),
                       });
 
                       if (response.ok) {
                         const data = await response.json();
                         if (data.success) {
+                          console.log('✅ Challenge created successfully, navigating to home');
+                          console.log('🔧 Clearing all state to prevent redirects');
                           alert('Challenge created successfully!');
-                          setAppState((prev) => ({ ...prev, mode: 'home' }));
+                          // Explicitly navigate to home and prevent any automatic redirects
+                          setAppState((prev) => ({
+                            ...prev,
+                            mode: 'home',
+                            // Clear any challenge-related state that might trigger redirects
+                            selectedChallenge: null,
+                            currentChallengeType: 'replication',
+                            jamSessionPostId: null,
+                            jamSessionComposition: null,
+                            currentPostId: null, // Clear the post ID to prevent automatic redirects
+                            currentComposition: null, // Clear composition data
+                          }));
+
+                          // Also clear the URL to prevent re-initialization with the same postId
+                          if (window.location.search) {
+                            window.history.replaceState(
+                              {},
+                              document.title,
+                              window.location.pathname
+                            );
+                          }
+                          console.log('✅ Navigation to home completed');
                         } else {
                           alert(`Failed: ${data.message}`);
                         }
@@ -2692,7 +2926,7 @@ export const App = () => {
               {/* Chart Creator Mode */}
               {appState.mode === 'chart_creator' && (
                 <ChartEditor
-                  instrument="drums"
+                  instrument="piano"
                   onSave={async (chart: ChartData) => {
                     try {
                       const response = await fetch('/api/create-chart', {
@@ -2773,12 +3007,48 @@ export const App = () => {
 
               {/* Challenge System Modes */}
               {appState.mode === 'challenge_select' && (
-                <ChallengeSelector
-                  challenges={appState.availableChallenges}
-                  onChallengeSelect={handleChallengeSelect}
-                  onBack={() => handleModeChange('home')}
-                  preSelectedChallenge={appState.selectedChallenge}
-                />
+                <div>
+                  {/* Mod Challenge Loader Button */}
+                  {isModerator(appState.username) && (
+                    <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                      <button
+                        onClick={handleShowModChallengeLoader}
+                        style={{
+                          padding: '10px 20px',
+                          backgroundColor: '#ff6b6b',
+                          color: '#fff',
+                          border: '2px solid #000',
+                          borderRadius: '0',
+                          fontSize: '8px',
+                          fontWeight: 'bold',
+                          cursor: 'pointer',
+                          fontFamily: "'Press Start 2P', monospace",
+                          boxShadow: '0 4px 0 #000, 0 0 10px rgba(255, 107, 107, 0.4)',
+                          transition: 'all 0.2s',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow =
+                            '0 6px 0 #000, 0 0 15px rgba(255, 107, 107, 0.6)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow =
+                            '0 4px 0 #000, 0 0 10px rgba(255, 107, 107, 0.4)';
+                        }}
+                      >
+                        🔧 LOAD MOD CHALLENGES
+                      </button>
+                    </div>
+                  )}
+
+                  <ChallengeSelector
+                    challenges={appState.availableChallenges}
+                    onChallengeSelect={handleChallengeSelect}
+                    onBack={() => handleModeChange('home')}
+                    preSelectedChallenge={appState.selectedChallenge}
+                  />
+                </div>
               )}
 
               {appState.mode === 'falling_notes' && appState.selectedChallenge && (
@@ -2813,7 +3083,7 @@ export const App = () => {
                     </h2>
                     <p style={{ color: '#aaa', fontSize: '12px', marginBottom: '20px' }}>
                       {appState.selectedChallenge.layers[appState.selectedLayerIndex]?.instrument ||
-                        'drums'}{' '}
+                        'piano'}{' '}
                       • Difficulty: medium
                     </p>
 
@@ -2905,7 +3175,7 @@ export const App = () => {
                   <FallingNotesChallenge
                     instrument={
                       appState.selectedChallenge.layers[appState.selectedLayerIndex]?.instrument ||
-                      'drums'
+                      'piano'
                     }
                     onNoteHit={async (note, velocity) => {
                       // Play audio when note is hit
@@ -2980,7 +3250,8 @@ export const App = () => {
 
               {appState.mode === 'replication_challenge' &&
                 appState.selectedChallenge &&
-                appState.selectedChallenge.layers[appState.selectedLayerIndex] && (
+                appState.selectedChallenge.layers[appState.selectedLayerIndex] &&
+                !appState.showScoreSubmission && (
                   <div>
                     {/* Layer/Instrument Selector */}
                     {appState.selectedChallenge.layers.length > 1 && (
@@ -3037,6 +3308,7 @@ export const App = () => {
                       </div>
                     )}
                     <ReplicationChallenge
+                      key={`${appState.selectedChallenge.id}-${appState.selectedLayerIndex}-${appState.isChallengeActive ? 'active' : 'inactive'}`}
                       targetTrack={appState.selectedChallenge.layers[appState.selectedLayerIndex]!}
                       instrument={
                         appState.selectedChallenge.layers[appState.selectedLayerIndex]!.instrument
@@ -3048,7 +3320,7 @@ export const App = () => {
                         // Score updates handled internally
                       }}
                       difficulty="medium"
-                      isActive={true}
+                      isActive={appState.isChallengeActive}
                       onComplete={() => {
                         // Challenge completed
                       }}
@@ -3073,6 +3345,7 @@ export const App = () => {
                     score={appState.challengeScore}
                     onSubmit={handleScoreSubmission}
                     onSkip={handleSkipScoreSubmission}
+                    onPlayAgain={handlePlayAgain}
                     challengeTitle={appState.selectedChallenge?.metadata.title || 'Challenge'}
                   />
                 )}
@@ -3149,6 +3422,57 @@ export const App = () => {
                   </div>
                 )}
             </main>
+
+            {/* Mod Challenge Loader Modal */}
+            {appState.showModChallengeLoader && (
+              <div
+                style={{
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: 'rgba(0,0,0,0.8)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 1000,
+                }}
+              >
+                <div
+                  style={{
+                    backgroundColor: '#1a1a2e',
+                    padding: '30px',
+                    border: '3px solid #4ecdc4',
+                    color: '#fff',
+                    fontFamily: "'Press Start 2P', monospace",
+                  }}
+                >
+                  <h2 style={{ color: '#4ecdc4', textAlign: 'center', marginBottom: '20px' }}>
+                    🔧 MOD CHALLENGE LOADER
+                  </h2>
+                  <p style={{ fontSize: '10px', textAlign: 'center', marginBottom: '20px' }}>
+                    Feature coming soon...
+                  </p>
+                  <button
+                    onClick={handleHideModChallengeLoader}
+                    style={{
+                      padding: '10px 20px',
+                      backgroundColor: '#666',
+                      color: '#fff',
+                      border: '2px solid #888',
+                      fontSize: '8px',
+                      fontFamily: "'Press Start 2P', monospace",
+                      cursor: 'pointer',
+                      display: 'block',
+                      margin: '0 auto',
+                    }}
+                  >
+                    CLOSE
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Footer */}
             <footer

@@ -70,13 +70,12 @@ interface FallingNotesChallengeProps {
 }
 
 const LANE_COUNT = 4;
-const HIT_WINDOW = 100;
 const LANE_WIDTH = 80;
 
 const DIFFICULTY_SETTINGS = {
-  easy: { noteInterval: 2000, noteDuration: 0, speed: 150 },
-  medium: { noteInterval: 1500, noteDuration: 0, speed: 200 },
-  hard: { noteInterval: 1000, noteDuration: 0, speed: 250 },
+  easy: { noteInterval: 2000, noteDuration: 0, speed: 100, hitWindow: 50 }, // Slower, bigger window
+  medium: { noteInterval: 1500, noteDuration: 0, speed: 150, hitWindow: 40 },
+  hard: { noteInterval: 1000, noteDuration: 0, speed: 200, hitWindow: 30 },
 };
 
 export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
@@ -483,7 +482,8 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
           const position = progress * settings.speed;
 
           // Check if note missed hit window
-          if (position > 400 + HIT_WINDOW && !note.hit && !note.missed) {
+          const hitWindow = settings.hitWindow || 30;
+          if (position > 400 + hitWindow && !note.hit && !note.missed) {
             console.log('❌ NOTE MISSED:', {
               noteId: note.id,
               note: note.note,
@@ -827,8 +827,9 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
             const notePosition = (elapsed / 1000) * settings.speed;
             const hitLinePosition = 400; // Hit line is at y=400
 
-            // Check if note is within hit window of the hit line
-            return Math.abs(notePosition - hitLinePosition) <= HIT_WINDOW;
+            // Use difficulty-specific hit window
+            const hitWindow = settings.hitWindow || 30;
+            return Math.abs(notePosition - hitLinePosition) <= hitWindow;
           });
 
           console.log('FallingNotesChallenge: Hit note found:', hitNote?.id, 'lane:', lane);
@@ -897,7 +898,8 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
           const elapsed = Date.now() - note.startTime;
           const notePosition = (elapsed / 1000) * settings.speed;
           const hitLinePosition = 400;
-          return Math.abs(notePosition - hitLinePosition) <= HIT_WINDOW;
+          const hitWindow = settings.hitWindow || 30;
+          return Math.abs(notePosition - hitLinePosition) <= hitWindow;
         });
 
         if (hitNote?.id) {
@@ -956,6 +958,76 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
     window.addEventListener('keyup', handleKeyRelease);
     return () => window.removeEventListener('keyup', handleKeyRelease);
   }, [handleKeyRelease]);
+
+  // Auto-scroll to ensure buttons are visible on mobile
+  useEffect(() => {
+    const scrollToButtons = () => {
+      // Only scroll on mobile devices
+      const isMobile = window.innerWidth <= 768 || window.innerHeight <= 600;
+      if (!isMobile) return;
+
+      // Find the control buttons container
+      const buttonsContainer = document.querySelector('[data-falling-notes-buttons]');
+      if (buttonsContainer) {
+        // Calculate the position to scroll to
+        const rect = buttonsContainer.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        const buttonHeight = rect.height;
+        const desiredPosition = rect.top + window.scrollY - (viewportHeight - buttonHeight - 50);
+
+        // Smooth scroll to position the buttons near the bottom of the screen
+        window.scrollTo({
+          top: Math.max(0, desiredPosition),
+          behavior: 'smooth',
+        });
+      }
+    };
+
+    // Scroll when component mounts
+    const timeoutId = setTimeout(scrollToButtons, 100);
+
+    // Scroll when game starts
+    if (isPlaying) {
+      const gameTimeoutId = setTimeout(scrollToButtons, 200);
+      return () => {
+        clearTimeout(timeoutId);
+        clearTimeout(gameTimeoutId);
+      };
+    }
+
+    return () => clearTimeout(timeoutId);
+  }, [isPlaying]);
+
+  // Also scroll when orientation changes
+  useEffect(() => {
+    const handleOrientationChange = () => {
+      setTimeout(() => {
+        const isMobile = window.innerWidth <= 768 || window.innerHeight <= 600;
+        if (!isMobile) return;
+
+        const buttonsContainer = document.querySelector('[data-falling-notes-buttons]');
+        if (buttonsContainer) {
+          const rect = buttonsContainer.getBoundingClientRect();
+          const viewportHeight = window.innerHeight;
+          const buttonHeight = rect.height;
+          const desiredPosition = rect.top + window.scrollY - (viewportHeight - buttonHeight - 50);
+
+          window.scrollTo({
+            top: Math.max(0, desiredPosition),
+            behavior: 'smooth',
+          });
+        }
+      }, 300); // Wait for orientation change to complete
+    };
+
+    window.addEventListener('orientationchange', handleOrientationChange);
+    window.addEventListener('resize', handleOrientationChange);
+
+    return () => {
+      window.removeEventListener('orientationchange', handleOrientationChange);
+      window.removeEventListener('resize', handleOrientationChange);
+    };
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -1064,7 +1136,8 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
       if (y >= -50 && y <= canvas.height + 50) {
         const x = note.lane * LANE_WIDTH + LANE_WIDTH / 2;
         const distanceToHitLine = Math.abs(y - 400);
-        const inWindow = distanceToHitLine <= HIT_WINDOW;
+        const hitWindow = settings.hitWindow || 30;
+        const inWindow = distanceToHitLine <= hitWindow;
 
         let color = '#00d9ff';
         if (note.missed) {
@@ -1495,6 +1568,7 @@ export const FallingNotesChallenge: React.FC<FallingNotesChallengeProps> = ({
 
       {/* Controls */}
       <div
+        data-falling-notes-buttons
         style={{
           display: 'flex',
           justifyContent: 'center',

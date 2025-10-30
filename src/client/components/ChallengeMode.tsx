@@ -16,6 +16,7 @@ import {
 import { ChallengeVisualCues } from './ChallengeVisualCues.js';
 import { ChallengeComparison } from './ChallengeComparison.js';
 import { ChallengeLeaderboard } from './ChallengeLeaderboard.js';
+import { PatternMatchingMode } from './PatternMatchingMode.js';
 
 type ChallengeProps = {
   originalTrack: TrackData;
@@ -28,6 +29,8 @@ type ChallengeState =
   | 'listening'
   | 'ready'
   | 'recording'
+  | 'visual_practice'
+  | 'pattern_matching'
   | 'completed'
   | 'submitting';
 
@@ -281,18 +284,32 @@ export const ChallengeMode: React.FC<ChallengeProps> = ({
             </ol>
           </div>
 
-          <div className="flex gap-3">
-            <button
-              onClick={handleListenToOriginal}
-              className="flex-1 px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors"
-            >
-              Listen to Original
-            </button>
+          <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <button
+                onClick={handleListenToOriginal}
+                className="px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors"
+              >
+                🎧 Listen to Original
+              </button>
+              <button
+                onClick={() => setChallengeState('visual_practice')}
+                className="px-6 py-3 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 transition-colors"
+              >
+                👁️ Visual Practice
+              </button>
+              <button
+                onClick={() => setChallengeState('pattern_matching')}
+                className="px-6 py-3 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition-colors"
+              >
+                🎯 Pattern Match
+              </button>
+            </div>
             <button
               onClick={handleStartChallenge}
-              className="flex-1 px-6 py-3 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition-colors"
+              className="w-full px-6 py-3 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition-colors"
             >
-              Start Challenge
+              Start Full Challenge
             </button>
           </div>
         </div>
@@ -351,6 +368,91 @@ export const ChallengeMode: React.FC<ChallengeProps> = ({
             Ready to Start Challenge
           </button>
         </div>
+      )}
+
+      {/* Visual Practice Phase */}
+      {challengeState === 'visual_practice' && (
+        <div className="space-y-4">
+          <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+            <h3 className="text-lg font-semibold text-purple-800 mb-2">Visual Practice Mode</h3>
+            <p className="text-purple-700 mb-4">
+              Practice the pattern without recording. Click the notes as they appear to get instant
+              feedback on your timing and accuracy.
+            </p>
+
+            {/* Enhanced Visual Cues */}
+            <div className="mb-4">
+              <ChallengeVisualCues
+                originalTrack={originalTrack}
+                isPlaying={false}
+                currentTime={0}
+                showUpcoming={true}
+                upcomingTimeWindow={5.0}
+                practiceMode={true}
+              />
+            </div>
+
+            {/* Interactive Note Pattern */}
+            <div className="grid grid-cols-4 gap-2 mb-4">
+              {originalTrack.notes.slice(0, 8).map((note, index) => (
+                <button
+                  key={index}
+                  onClick={() => {
+                    // Play the note sound for practice
+                    if (audioEngine && audioInitialized) {
+                      audioEngine.playNote(originalTrack.instrument, note.note, note.velocity);
+                    }
+                  }}
+                  className="p-3 bg-purple-100 hover:bg-purple-200 border border-purple-300 rounded text-sm font-medium transition-colors"
+                >
+                  {note.note}
+                  <div className="text-xs text-purple-600 mt-1">
+                    {(note.timestamp / 1000).toFixed(1)}s
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <div className="text-sm text-purple-600 mb-4">
+              💡 Tip: Click each note button to hear how it should sound. The timing is shown below
+              each note.
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => setChallengeState('instructions')}
+              className="flex-1 px-6 py-3 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600 transition-colors"
+            >
+              Back
+            </button>
+            <button
+              onClick={handleStartChallenge}
+              className="flex-1 px-6 py-3 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition-colors"
+            >
+              Ready for Challenge
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Pattern Matching Mode */}
+      {challengeState === 'pattern_matching' && (
+        <PatternMatchingMode
+          originalTrack={originalTrack}
+          onComplete={(accuracy) => {
+            // Create a simple score based on pattern matching accuracy
+            const challengeScore: ChallengeScore = {
+              userId: 'current_user',
+              accuracy: accuracy,
+              timing: 0, // No timing component in pattern matching
+              completedAt: Date.now(),
+              originalTrackId: originalTrack.id,
+            };
+            onScoreSubmit(challengeScore);
+          }}
+          onCancel={() => setChallengeState('instructions')}
+        />
       )}
 
       {/* Ready/Countdown Phase */}

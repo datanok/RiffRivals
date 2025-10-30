@@ -11,6 +11,7 @@ type ChallengeVisualCuesProps = {
   showUpcoming?: boolean;
   upcomingTimeWindow?: number; // seconds to show upcoming notes
   onNoteHighlight?: (note: NoteEvent, isActive: boolean) => void;
+  practiceMode?: boolean; // Show all notes for practice
 };
 
 type VisualNote = {
@@ -27,6 +28,7 @@ export const ChallengeVisualCues: React.FC<ChallengeVisualCuesProps> = ({
   showUpcoming = true,
   upcomingTimeWindow = 2.0,
   onNoteHighlight,
+  practiceMode = false,
 }) => {
   const [visualNotes, setVisualNotes] = useState<VisualNote[]>([]);
   const [activeNotes, setActiveNotes] = useState<Set<string>>(new Set());
@@ -123,6 +125,51 @@ export const ChallengeVisualCues: React.FC<ChallengeVisualCuesProps> = ({
     if (velocity >= 0.2) return 'bg-green-500';
     return 'bg-blue-500';
   };
+
+  // In practice mode, show all notes regardless of playback state
+  if (practiceMode) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 text-lg font-semibold text-gray-800">
+          <span>{getInstrumentIcon(originalTrack.instrument)}</span>
+          <span>Practice Pattern</span>
+        </div>
+
+        <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+          <h4 className="font-semibold text-purple-800 mb-3">Complete Note Sequence</h4>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {originalTrack.notes.map((note, index) => (
+              <div
+                key={index}
+                className="p-3 bg-white rounded border border-purple-300 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => {
+                  // This would trigger note playback in parent component
+                  if (onNoteHighlight) {
+                    onNoteHighlight(note, true);
+                  }
+                }}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-medium text-purple-800">
+                    {getNoteDisplayName(note.note, originalTrack.instrument)}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <div
+                      className={`w-2 h-2 rounded-full ${getVelocityColor(note.velocity)}`}
+                    ></div>
+                  </div>
+                </div>
+                <div className="text-xs text-gray-500">
+                  Time: {Math.round(note.startTime * 10) / 10}s
+                </div>
+                <div className="text-xs text-gray-500">{getVelocityIntensity(note.velocity)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!isPlaying || visualNotes.length === 0) {
     return (

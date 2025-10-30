@@ -394,24 +394,52 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
             Select Lane to Add Notes:
           </label>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {chartData.lanes.map((lane) => (
-              <button
-                key={lane}
-                onClick={() => setSelectedLane(lane)}
-                style={{
-                  padding: '12px 20px',
-                  borderRadius: '8px',
-                  border: `3px solid ${selectedLane === lane ? '#00ff00' : '#0f3460'}`,
-                  background: selectedLane === lane ? '#2a4a2a' : '#16213e',
-                  color: '#fff',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  textTransform: 'uppercase',
-                }}
-              >
-                {lane}
-              </button>
-            ))}
+            {chartData.lanes.map((lane) => {
+              const isSelected = selectedLane === lane;
+              return (
+                <button
+                  key={lane}
+                  onClick={() => setSelectedLane(lane)}
+                  style={{
+                    padding: '12px 20px',
+                    borderRadius: '8px',
+                    border: `3px solid ${isSelected ? '#00ff00' : '#0f3460'}`,
+                    background: isSelected
+                      ? 'linear-gradient(135deg, #2a4a2a 0%, #1a3a1a 100%)'
+                      : '#16213e',
+                    color: isSelected ? '#00ff00' : '#fff',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    textTransform: 'uppercase',
+                    boxShadow: isSelected
+                      ? '0 0 15px rgba(0, 255, 0, 0.4), inset 0 0 10px rgba(0, 255, 0, 0.1)'
+                      : 'none',
+                    textShadow: isSelected ? '0 0 5px #00ff00' : 'none',
+                    transform: isSelected ? 'scale(1.05)' : 'scale(1)',
+                    transition: 'all 0.2s ease-in-out',
+                    position: 'relative',
+                  }}
+                >
+                  {isSelected && (
+                    <span
+                      style={{
+                        position: 'absolute',
+                        top: '-8px',
+                        right: '-8px',
+                        width: '16px',
+                        height: '16px',
+                        background: '#00ff00',
+                        borderRadius: '50%',
+                        animation: 'pulse 1.5s infinite',
+                        boxShadow: '0 0 8px #00ff00',
+                      }}
+                    />
+                  )}
+                  {lane}
+                  {isSelected && ' ✓'}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -509,64 +537,97 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
               ))}
 
               {/* Lanes */}
-              {chartData.lanes.map((lane, laneIndex) => (
-                <div
-                  key={lane}
-                  onClick={(e) => {
-                    if (!selectedLane) {
-                      alert('Please select a lane first!');
-                      return;
-                    }
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const clickX = e.clientX - rect.left;
-                    const time = (clickX / rect.width) * chartData.duration;
-                    addNote(time, selectedLane);
-                  }}
-                  style={{
-                    position: 'absolute',
-                    top: `${30 + laneIndex * 60}px`, // Start below the scale
-                    left: 0,
-                    right: 0,
-                    height: '60px',
-                    background: laneIndex % 2 === 0 ? '#1a1a2e' : '#16213e',
-                    border: '1px solid #0f3460',
-                    cursor: 'crosshair',
-                    display: 'flex',
-                    alignItems: 'center',
-                    paddingLeft: '8px',
-                    color: '#fff',
-                    fontWeight: 'bold',
-                  }}
-                >
-                  {lane}
-
-                  {/* Notes in this lane */}
-                  {chartData.notes
-                    .filter((note) => note.lane === lane)
-                    .map((note) => (
-                      <div
-                        key={note.id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeNote(note.id);
-                        }}
+              {chartData.lanes.map((lane, laneIndex) => {
+                const isActiveTrack = selectedLane === lane;
+                return (
+                  <div
+                    key={lane}
+                    onClick={(e) => {
+                      if (!selectedLane) {
+                        alert('Please select a lane first!');
+                        return;
+                      }
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const clickX = e.clientX - rect.left;
+                      const time = (clickX / rect.width) * chartData.duration;
+                      addNote(time, selectedLane);
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: `${30 + laneIndex * 60}px`, // Start below the scale
+                      left: 0,
+                      right: 0,
+                      height: '60px',
+                      background: isActiveTrack
+                        ? 'linear-gradient(90deg, #2a4a2a 0%, #1a3a1a 100%)'
+                        : laneIndex % 2 === 0
+                          ? '#1a1a2e'
+                          : '#16213e',
+                      border: isActiveTrack ? '3px solid #00ff00' : '1px solid #0f3460',
+                      cursor: 'crosshair',
+                      display: 'flex',
+                      alignItems: 'center',
+                      paddingLeft: '8px',
+                      color: isActiveTrack ? '#00ff00' : '#fff',
+                      fontWeight: 'bold',
+                      boxShadow: isActiveTrack
+                        ? '0 0 15px rgba(0, 255, 0, 0.3), inset 0 0 10px rgba(0, 255, 0, 0.1)'
+                        : 'none',
+                      transition: 'all 0.2s ease-in-out',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {isActiveTrack && (
+                        <div
+                          style={{
+                            width: '12px',
+                            height: '12px',
+                            background: '#00ff00',
+                            borderRadius: '50%',
+                            animation: 'pulse 1.5s infinite',
+                            boxShadow: '0 0 8px #00ff00',
+                          }}
+                        />
+                      )}
+                      <span
                         style={{
-                          position: 'absolute',
-                          left: `${(note.time / chartData.duration) * 100}%`,
-                          top: '50%',
-                          transform: 'translate(-50%, -50%)',
-                          width: '20px',
-                          height: '40px',
-                          background: '#00d4ff',
-                          border: '2px solid #00ff00',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
+                          textShadow: isActiveTrack ? '0 0 5px #00ff00' : 'none',
+                          fontSize: isActiveTrack ? '16px' : '14px',
                         }}
-                        title={`${note.lane} at ${note.time.toFixed(2)}s - Click to remove`}
-                      />
-                    ))}
-                </div>
-              ))}
+                      >
+                        {lane}
+                        {isActiveTrack && ' ← ACTIVE'}
+                      </span>
+                    </div>
+
+                    {/* Notes in this lane */}
+                    {chartData.notes
+                      .filter((note) => note.lane === lane)
+                      .map((note) => (
+                        <div
+                          key={note.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeNote(note.id);
+                          }}
+                          style={{
+                            position: 'absolute',
+                            left: `${(note.time / chartData.duration) * 100}%`,
+                            top: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            width: '20px',
+                            height: '40px',
+                            background: '#00d4ff',
+                            border: '2px solid #00ff00',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                          }}
+                          title={`${note.lane} at ${note.time.toFixed(2)}s - Click to remove`}
+                        />
+                      ))}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -597,22 +658,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
             }}
           >
             🎮 TEST CHART
-          </button>
-
-          <button
-            onClick={loadDemo}
-            style={{
-              padding: '12px 24px',
-              borderRadius: '8px',
-              border: '3px solid #000',
-              background: 'linear-gradient(45deg, #4ecdc4, #44a08d)',
-              color: '#fff',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              fontSize: '14px',
-            }}
-          >
-            🎮 LOAD DEMO
           </button>
 
           <button
@@ -950,6 +995,15 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
+      <style>
+        {`
+          @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
+            100% { opacity: 1; transform: scale(1); }
+          }
+        `}
+      </style>
       <h2 style={{ color: '#00d4ff', marginBottom: '20px', textAlign: 'center', fontSize: '24px' }}>
         🎼 CHART CREATOR MODE
       </h2>

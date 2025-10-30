@@ -31,8 +31,6 @@ type SynthNote =
   | 'B4'
   | 'C5';
 
-type NoteType = DrumType | PianoNote | BassNote | SynthNote;
-
 interface ReplicationChallengeProps {
   targetTrack: TrackData;
   instrument: InstrumentType;
@@ -61,8 +59,7 @@ interface ComparisonResult {
   accuracy: number;
 }
 
-const TIMING_TOLERANCE = 0.2; // 200ms tolerance for timing
-const VELOCITY_TOLERANCE = 0.3; // 30% velocity tolerance
+// No timing or velocity tolerance needed - sequence-based scoring only
 
 export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
   targetTrack,
@@ -77,9 +74,10 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
   onChallengeComplete,
   audioEngine,
 }) => {
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordedNotes, setRecordedNotes] = useState<RecordedNote[]>([]);
-  const [currentTime, setCurrentTime] = useState(0);
+  // Suppress unused parameter warnings
+  void difficulty;
+  void onComplete;
+  void scoreWeights;
   const [isPlaying, setIsPlaying] = useState(false);
   const [comparisonResults, setComparisonResults] = useState<ComparisonResult[]>([]);
   const [score, setScore] = useState(0);
@@ -87,6 +85,14 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
   const [audioInitialized, setAudioInitialized] = useState(false);
   const [activeNotes, setActiveNotes] = useState<Set<string>>(new Set());
   const localAudioEngineRef = useRef<DhwaniAudioEngine | null>(null);
+
+  // Auto-detection states (no recording needed)
+  const [detectedNotes, setDetectedNotes] = useState<RecordedNote[]>([]);
+  const [isListening, setIsListening] = useState(false);
+  const [currentNoteIndex, setCurrentNoteIndex] = useState(0);
+  const [showNextNote, setShowNextNote] = useState(true);
+  const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
+  const [wrongNoteMessage, setWrongNoteMessage] = useState<string>('');
 
   // Enhanced scoring for challenge mode
   const [hitCounts, setHitCounts] = useState({
@@ -96,9 +102,8 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
     miss: 0,
   });
 
-  const recordingStartTimeRef = useRef<number>(0);
   const playbackIntervalRef = useRef<number | undefined>(undefined);
-  const recordingIntervalRef = useRef<number | undefined>(undefined);
+  const listeningStartTimeRef = useRef<number>(0);
 
   // Initialize local audio engine if not provided
   useEffect(() => {
@@ -149,11 +154,11 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
     }
   }, [getAudioEngine]);
 
-  // Calculate detailed scores for challenge mode
+  // Calculate detailed scores for challenge mode (simplified - no timing penalties)
   const calculateDetailedScores = useCallback(() => {
-    const totalHits = hitCounts.perfect + hitCounts.great + hitCounts.good + hitCounts.miss;
+    const totalNotes = targetTrack.notes.length;
 
-    if (totalHits === 0) {
+    if (totalNotes === 0) {
       return {
         timingScore: 0,
         accuracyScore: 0,
@@ -161,23 +166,17 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
       };
     }
 
-    // Timing score based on hit quality
-    const timingScore =
-      (hitCounts.perfect * 100 + hitCounts.great * 75 + hitCounts.good * 50) / totalHits;
-
-    // Accuracy score based on hit rate
-    const accuracyScore =
-      ((hitCounts.perfect + hitCounts.great + hitCounts.good) / totalHits) * 100;
-
-    // Combined score with weights
-    const combinedScore = timingScore * scoreWeights.timing + accuracyScore * scoreWeights.accuracy;
+    // Simple scoring: perfect notes get 100%, missed notes get 0%
+    const accuracyScore = (hitCounts.perfect / totalNotes) * 100;
+    const timingScore = accuracyScore; // Same as accuracy since no timing requirements
+    const combinedScore = accuracyScore; // Same as accuracy
 
     return {
       timingScore: Math.round(timingScore),
       accuracyScore: Math.round(accuracyScore),
       combinedScore: Math.round(combinedScore),
     };
-  }, [hitCounts, scoreWeights]);
+  }, [hitCounts, targetTrack.notes.length]);
 
   // Create challenge score when game completes
   const createChallengeScore = useCallback((): ChallengeScore => {
@@ -199,39 +198,37 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
     };
   }, [calculateDetailedScores, hitCounts, targetTrack.id]);
 
-  // Compare recorded notes with target notes
+  // Compare detected notes with target notes (sequence-based, no timing requirements)
   const compareNotes = useCallback(
-    (recorded: RecordedNote[], target: NoteEvent[]): ComparisonResult[] => {
+    (detected: RecordedNote[], target: NoteEvent[]): ComparisonResult[] => {
       const results: ComparisonResult[] = [];
 
-      // Sort both arrays by start time
-      const sortedRecorded = [...recorded].sort((a, b) => a.startTime - b.startTime);
+      // Debug: comparing notes
+      console.log('🔍 Comparing notes:', {
+        detected: detected.map((n) => n.note),
+        target: target.map((n) => n.note),
+      });
+
+      // Sort target notes by their original order (not by time)
       const sortedTarget = [...target].sort((a, b) => a.startTime - b.startTime);
 
-      // Compare each target note with the closest recorded note
-      sortedTarget.forEach((targetNote) => {
-        const closestRecorded = sortedRecorded.find(
-          (recordedNote) =>
-            Math.abs(recordedNote.startTime - targetNote.startTime) <= TIMING_TOLERANCE
-        );
+      // Compare each target note with detected notes in sequence order
+      sortedTarget.forEach((targetNote, index) => {
+        const detectedNote = detected[index]; // Match by sequence position, not timing
 
-        if (closestRecorded) {
-          const noteMatch = closestRecorded.note === targetNote.note;
-          const timingMatch =
-            Math.abs(closestRecorded.startTime - targetNote.startTime) <= TIMING_TOLERANCE;
-          const velocityMatch =
-            Math.abs(closestRecorded.velocity - targetNote.velocity) <= VELOCITY_TOLERANCE;
+        if (detectedNote) {
+          const noteMatch = detectedNote.note === targetNote.note;
+          // Ignore timing and velocity for easier scoring
+          const timingMatch = true; // Always true - no timing requirements
+          const velocityMatch = true; // Always true - no velocity requirements
 
-          let accuracy = 0;
-          if (noteMatch && timingMatch && velocityMatch) {
-            accuracy = 100;
-          } else if (noteMatch && timingMatch) {
-            accuracy = 80;
-          } else if (noteMatch) {
-            accuracy = 60;
-          } else {
-            accuracy = 0;
-          }
+          // Simple scoring: 100% if note matches, 0% if not
+          const accuracy = noteMatch ? 100 : 0;
+
+          // Log note comparison result
+          console.log(
+            `🎵 Note ${index}: ${detectedNote.note} vs ${targetNote.note} = ${noteMatch ? '✅' : '❌'}`
+          );
 
           results.push({
             noteMatch,
@@ -240,7 +237,8 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
             accuracy,
           });
         } else {
-          // No recorded note found for this target note
+          // No detected note at this position
+          console.log(`🎵 Note ${index}: MISSING vs ${targetNote.note} = ❌`);
           results.push({
             noteMatch: false,
             timingMatch: false,
@@ -255,9 +253,8 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
     []
   );
 
-  // Start recording
-  const startRecording = useCallback(async () => {
-    // Ensure audio is initialized before recording
+  // Start listening for notes (auto-detection)
+  const startListening = useCallback(async () => {
     const initialized = await ensureAudioInitialized();
     if (!initialized) {
       console.warn('Audio not initialized - please click the audio button first');
@@ -265,69 +262,143 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
     }
 
     playButtonClick();
-    setIsRecording(true);
-    setRecordedNotes([]);
-    recordingStartTimeRef.current = Date.now();
-
-    // Start recording interval
-    recordingIntervalRef.current = window.setInterval(() => {
-      setCurrentTime(Date.now() - recordingStartTimeRef.current);
-    }, 100);
+    setIsListening(true);
+    setDetectedNotes([]);
+    setCurrentNoteIndex(0);
+    setHasStartedPlaying(false);
+    listeningStartTimeRef.current = Date.now();
   }, [ensureAudioInitialized]);
 
-  // Stop recording and compare
-  const stopRecording = useCallback(() => {
-    playButtonClick();
-    setIsRecording(false);
+  // Auto-complete when all notes are detected
+  const checkCompletion = useCallback(
+    (currentDetectedNotes?: RecordedNote[], noteIndex?: number) => {
+      const indexToCheck = noteIndex !== undefined ? noteIndex : currentNoteIndex;
 
-    if (recordingIntervalRef.current) {
-      clearInterval(recordingIntervalRef.current);
-    }
+      console.log('🔍 checkCompletion called:', {
+        currentNoteIndex,
+        indexToCheck,
+        targetLength: targetTrack.notes.length,
+        hasStartedPlaying,
+        detectedNotesLength: detectedNotes.length,
+        currentDetectedNotesLength: currentDetectedNotes?.length,
+      });
 
-    // Compare recorded notes with target
-    const results = compareNotes(recordedNotes, targetTrack.notes);
-    setComparisonResults(results);
+      if (indexToCheck >= targetTrack.notes.length && hasStartedPlaying) {
+        console.log('🏆 COMPLETION CONDITION MET - Starting challenge completion process');
+        setIsListening(false);
 
-    // Calculate scores
-    const totalNotes = targetTrack.notes.length;
-    const correctNotes = results.filter((r) => r.noteMatch).length;
-    const perfectNotes = results.filter((r) => r.accuracy === 100).length;
-    const greatNotes = results.filter((r) => r.accuracy === 80).length;
-    const goodNotes = results.filter((r) => r.accuracy === 60).length;
-    const missedNotes = results.filter((r) => r.accuracy === 0).length;
+        // Use the passed detected notes or the state
+        const notesToUse = currentDetectedNotes || detectedNotes;
 
-    const accuracyScore = (correctNotes / totalNotes) * 100;
-    const timingScore = results.reduce((sum, r) => sum + r.accuracy, 0) / totalNotes;
+        // Compare detected notes with target (sequence-based)
+        const results = compareNotes(notesToUse, targetTrack.notes);
+        setComparisonResults(results);
 
-    setAccuracy(accuracyScore);
-    setScore(timingScore);
+        // Debug logging
+        console.log('🎯 Challenge Complete - Scoring:');
+        console.log(
+          'Detected notes:',
+          notesToUse.map((n) => n.note)
+        );
+        console.log(
+          'Target notes:',
+          targetTrack.notes.map((n) => n.note)
+        );
+        console.log('Comparison results:', results);
 
-    // Update hit counts
-    setHitCounts({
-      perfect: perfectNotes,
-      great: greatNotes,
-      good: goodNotes,
-      miss: missedNotes,
-    });
+        // Count correct vs wrong notes from the comparison results
+        const totalNotes = targetTrack.notes.length;
+        const correctNotes = results.filter((r) => r.noteMatch).length;
+        const wrongNotes = notesToUse.length - correctNotes;
 
-    onScoreUpdate(timingScore, accuracyScore);
+        console.log('📊 Scoring calculation:', {
+          totalNotes,
+          totalNotesPlayed: notesToUse.length,
+          correctNotes,
+          wrongNotes,
+          accuracyScore: (correctNotes / totalNotes) * 100,
+        });
 
-    // If in challenge mode, create and send challenge score
-    if (challengeMode === 'challenge' && onChallengeComplete) {
-      const challengeScore = createChallengeScore();
-      onChallengeComplete(challengeScore);
-    }
-  }, [
-    recordedNotes,
-    targetTrack.notes,
-    compareNotes,
-    onScoreUpdate,
-    challengeMode,
-    onChallengeComplete,
-    createChallengeScore,
-  ]);
+        // Count correct notes as "perfect" and wrong notes as "miss"
+        const perfectNotes = correctNotes;
+        const missedNotes = totalNotes - correctNotes;
 
-  // Handle note play during recording
+        const accuracyScore = (correctNotes / totalNotes) * 100;
+        const finalScore = accuracyScore; // Same as accuracy since no timing penalty
+
+        setAccuracy(accuracyScore);
+        setScore(finalScore);
+
+        // Update hit counts (simplified)
+        setHitCounts({
+          perfect: perfectNotes,
+          great: 0, // No "great" category needed
+          good: 0, // No "good" category needed
+          miss: missedNotes,
+        });
+
+        console.log('📊 Final scores set:', {
+          accuracyScore,
+          finalScore,
+          hitCounts: {
+            perfect: perfectNotes,
+            great: 0,
+            good: 0,
+            miss: missedNotes,
+          },
+        });
+
+        onScoreUpdate(finalScore, accuracyScore);
+
+        // If in challenge mode, create and send challenge score
+        if (challengeMode === 'challenge' && onChallengeComplete) {
+          // Create challenge score with current values (not state)
+          const currentHitCounts = {
+            perfect: perfectNotes,
+            great: 0,
+            good: 0,
+            miss: missedNotes,
+          };
+
+          const challengeScore: ChallengeScore = {
+            userId: 'current_user',
+            accuracy: accuracyScore,
+            timing: finalScore,
+            timingScore: finalScore,
+            accuracyScore: accuracyScore,
+            combinedScore: finalScore,
+            perfectHits: currentHitCounts.perfect,
+            greatHits: currentHitCounts.great,
+            goodHits: currentHitCounts.good,
+            missedNotes: currentHitCounts.miss,
+            completedAt: Date.now(),
+            originalTrackId: targetTrack.id,
+            challengeType: 'replication' as ChallengeType,
+          };
+
+          console.log('🏆 Sending challenge score:', challengeScore);
+          onChallengeComplete(challengeScore);
+        }
+      }
+    },
+    [
+      currentNoteIndex,
+      targetTrack.notes.length,
+      hasStartedPlaying,
+      detectedNotes,
+      targetTrack.notes,
+      compareNotes,
+      onScoreUpdate,
+      challengeMode,
+      onChallengeComplete,
+      createChallengeScore,
+    ]
+  );
+
+  // Note: checkCompletion is now called manually when notes are added
+  // to ensure we have the latest detectedNotes state
+
+  // Handle note play with auto-detection
   const handleNotePlay = useCallback(
     async (note: string, velocity: number) => {
       // Ensure audio is initialized
@@ -357,25 +428,79 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
           newSet.delete(note);
           return newSet;
         });
-      }, 200); // 200ms highlight duration
+      }, 200);
 
-      if (!isRecording) {
-        onNotePlay(note, velocity);
-        return;
+      // Auto-detect notes when listening
+      if (isListening) {
+        setHasStartedPlaying(true);
+
+        // Check if we've already completed all notes
+        if (currentNoteIndex >= targetTrack.notes.length) {
+          console.log('🎯 All notes already completed, ignoring additional input');
+          return; // Don't process any more notes
+        }
+
+        // Check if this matches the expected note
+        const expectedNote = targetTrack.notes[currentNoteIndex];
+
+        console.log(
+          `🎯 Note played: ${note}, Expected: ${expectedNote?.note}, Index: ${currentNoteIndex}`
+        );
+
+        // Add ALL notes played (correct and wrong) to detected notes
+        const currentTime = Date.now() - listeningStartTimeRef.current;
+        const newNote: RecordedNote = {
+          note,
+          velocity,
+          startTime: currentTime / 1000,
+          duration: 0,
+        };
+
+        const newIndex = currentNoteIndex + 1;
+        const isCorrect = expectedNote && note === expectedNote.note;
+
+        setDetectedNotes((prev) => {
+          const updated = [...prev, newNote];
+          console.log(
+            `${isCorrect ? '✅' : '❌'} Added note (${isCorrect ? 'correct' : 'wrong'}). All notes played:`,
+            updated.map((n) => n.note)
+          );
+
+          // Check completion immediately with the updated notes
+          if (newIndex >= targetTrack.notes.length && hasStartedPlaying) {
+            console.log('🎯 All notes played, triggering completion...');
+            // Use setTimeout to ensure state updates are complete
+            setTimeout(() => checkCompletion(updated, newIndex), 50);
+          }
+
+          return updated;
+        });
+
+        // Always advance to next note (regardless of correct/wrong)
+        setCurrentNoteIndex(newIndex);
+        setShowNextNote(true);
+
+        if (!isCorrect && expectedNote) {
+          console.log(`❌ Wrong note! Expected ${expectedNote.note}, got ${note}`);
+          // Show visual feedback for wrong notes
+          setWrongNoteMessage(`Wrong note! Expected: ${expectedNote.note}`);
+          setTimeout(() => setWrongNoteMessage(''), 2000);
+        }
       }
 
-      const currentTime = Date.now() - recordingStartTimeRef.current;
-      const newNote: RecordedNote = {
-        note,
-        velocity,
-        startTime: currentTime / 1000, // Convert to seconds
-        duration: 0, // Instant button press (no long notes)
-      };
-
-      setRecordedNotes((prev) => [...prev, newNote]);
       onNotePlay(note, velocity);
     },
-    [isRecording, onNotePlay, instrument, ensureAudioInitialized, getAudioEngine]
+    [
+      isListening,
+      onNotePlay,
+      instrument,
+      ensureAudioInitialized,
+      getAudioEngine,
+      currentNoteIndex,
+      targetTrack.notes,
+      hasStartedPlaying,
+      checkCompletion,
+    ]
   );
 
   // Play target track for reference
@@ -453,9 +578,6 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (recordingIntervalRef.current) {
-        clearInterval(recordingIntervalRef.current);
-      }
       if (playbackIntervalRef.current) {
         clearTimeout(playbackIntervalRef.current);
       }
@@ -466,12 +588,12 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
   const hasAutoPlayedRef = useRef(false);
 
   useEffect(() => {
-    if (isActive && !isRecording && !isPlaying && !hasAutoPlayedRef.current) {
+    if (isActive && !isListening && !isPlaying && !hasAutoPlayedRef.current) {
       // Auto-play target track first (only once)
       playTargetTrack();
       hasAutoPlayedRef.current = true;
     }
-  }, [isActive, isRecording, isPlaying, playTargetTrack]);
+  }, [isActive, isListening, isPlaying, playTargetTrack]);
 
   return (
     <div
@@ -571,52 +693,40 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
       >
         <button
           onClick={playTargetTrack}
-          disabled={isPlaying || isRecording}
+          disabled={isPlaying || isListening}
           style={{
             padding: '12px 24px',
             background:
-              isPlaying || isRecording
+              isPlaying || isListening
                 ? 'linear-gradient(180deg, #666 0%, #444 100%)'
                 : 'linear-gradient(180deg, #00d4ff 0%, #0099cc 100%)',
-            color: isPlaying || isRecording ? '#999' : '#000',
+            color: isPlaying || isListening ? '#999' : '#000',
             border: '4px solid #000',
             borderRadius: '8px',
             fontSize: '10px',
             fontWeight: 'bold',
             fontFamily: 'monospace',
-            cursor: isPlaying || isRecording ? 'not-allowed' : 'pointer',
-            textShadow: isPlaying || isRecording ? '1px 1px 0 #000' : '1px 1px 0 #fff',
+            cursor: isPlaying || isListening ? 'not-allowed' : 'pointer',
+            textShadow: isPlaying || isListening ? '1px 1px 0 #000' : '1px 1px 0 #fff',
             boxShadow:
-              isPlaying || isRecording
+              isPlaying || isListening
                 ? '0 4px 0 #333'
                 : '0 4px 0 #006699, 0 0 20px rgba(0, 212, 255, 0.5)',
             letterSpacing: '1px',
             transition: 'all 0.1s',
-            opacity: isPlaying || isRecording ? 0.6 : 1,
-          }}
-          onMouseDown={(e) => {
-            if (!isPlaying && !isRecording) {
-              e.currentTarget.style.transform = 'translateY(4px)';
-              e.currentTarget.style.boxShadow = '0 0 0 #006699, 0 0 20px rgba(0, 212, 255, 0.5)';
-            }
-          }}
-          onMouseUp={(e) => {
-            if (!isPlaying && !isRecording) {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 0 #006699, 0 0 20px rgba(0, 212, 255, 0.5)';
-            }
+            opacity: isPlaying || isListening ? 0.6 : 1,
           }}
         >
           {isPlaying ? '🎵 PLAYING...' : '🎵 PLAY TARGET'}
         </button>
 
         <button
-          onClick={isRecording ? stopRecording : startRecording}
-          disabled={isPlaying}
+          onClick={startListening}
+          disabled={isPlaying || isListening}
           style={{
             padding: '12px 24px',
-            background: isRecording
-              ? 'linear-gradient(180deg, #ff0064 0%, #cc0050 100%)'
+            background: isListening
+              ? 'linear-gradient(180deg, #ff6600 0%, #cc5500 100%)'
               : isPlaying
                 ? 'linear-gradient(180deg, #666 0%, #444 100%)'
                 : 'linear-gradient(180deg, #00ff00 0%, #00cc00 100%)',
@@ -628,8 +738,8 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
             fontFamily: 'monospace',
             cursor: isPlaying ? 'not-allowed' : 'pointer',
             textShadow: isPlaying ? '1px 1px 0 #000' : '1px 1px 0 #fff',
-            boxShadow: isRecording
-              ? '0 4px 0 #990040, 0 0 20px rgba(255, 0, 100, 0.5)'
+            boxShadow: isListening
+              ? '0 4px 0 #994400, 0 0 20px rgba(255, 102, 0, 0.5)'
               : isPlaying
                 ? '0 4px 0 #333'
                 : '0 4px 0 #006600, 0 0 20px rgba(0, 255, 0, 0.5)',
@@ -637,53 +747,82 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
             transition: 'all 0.1s',
             opacity: isPlaying ? 0.6 : 1,
           }}
-          onMouseDown={(e) => {
-            if (!isPlaying) {
-              e.currentTarget.style.transform = 'translateY(4px)';
-              e.currentTarget.style.boxShadow = isRecording
-                ? '0 0 0 #990040, 0 0 20px rgba(255, 0, 100, 0.5)'
-                : '0 0 0 #006600, 0 0 20px rgba(0, 255, 0, 0.5)';
-            }
-          }}
-          onMouseUp={(e) => {
-            if (!isPlaying) {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = isRecording
-                ? '0 4px 0 #990040, 0 0 20px rgba(255, 0, 100, 0.5)'
-                : '0 4px 0 #006600, 0 0 20px rgba(0, 255, 0, 0.5)';
-            }
-          }}
         >
-          {isRecording ? '⏹️ STOP RECORDING' : '🎤 START RECORDING'}
+          {isListening ? '🎯 LISTENING...' : '🎯 START CHALLENGE'}
         </button>
+
+        {isListening && hasStartedPlaying && currentNoteIndex < targetTrack.notes.length && (
+          <button
+            onClick={() => {
+              // Force completion with current progress
+              console.log('🔄 Finish Early clicked, forcing completion...');
+              checkCompletion(detectedNotes, currentNoteIndex);
+            }}
+            style={{
+              padding: '12px 24px',
+              background: 'linear-gradient(180deg, #ff9500 0%, #cc7700 100%)',
+              color: '#000',
+              border: '4px solid #000',
+              borderRadius: '8px',
+              fontSize: '10px',
+              fontWeight: 'bold',
+              fontFamily: 'monospace',
+              cursor: 'pointer',
+              textShadow: '1px 1px 0 #fff',
+              boxShadow: '0 4px 0 #996600, 0 0 20px rgba(255, 149, 0, 0.5)',
+              letterSpacing: '1px',
+              transition: 'all 0.1s',
+            }}
+          >
+            ✅ FINISH EARLY
+          </button>
+        )}
       </div>
 
-      {/* Recording Status */}
-      {isRecording && (
+      {/* Challenge Status */}
+      {isListening && (
         <div
           style={{
             textAlign: 'center',
             marginBottom: '20px',
             padding: '12px',
-            background: 'rgba(255, 0, 100, 0.2)',
-            border: '2px solid #ff0064',
+            background: 'rgba(255, 102, 0, 0.2)',
+            border: '2px solid #ff6600',
             borderRadius: '8px',
             animation: 'pulse 1s ease-in-out infinite',
           }}
         >
           <div
             style={{
-              color: '#ff0064',
+              color: currentNoteIndex >= targetTrack.notes.length ? '#00ff00' : '#ff6600',
               fontSize: '14px',
               marginBottom: '5px',
               fontWeight: 'bold',
-              textShadow: '0 0 10px #ff0064',
+              textShadow: `0 0 10px ${currentNoteIndex >= targetTrack.notes.length ? '#00ff00' : '#ff6600'}`,
             }}
           >
-            🔴 RECORDING...
+            {currentNoteIndex >= targetTrack.notes.length
+              ? '🏆 CHALLENGE COMPLETE'
+              : '🎯 CHALLENGE ACTIVE'}
           </div>
           <div style={{ color: '#fff', fontSize: '10px' }}>
-            Time: {(currentTime / 1000).toFixed(1)}s | Notes Played: {recordedNotes.length}
+            Progress: {currentNoteIndex} / {targetTrack.notes.length} notes played
+            {currentNoteIndex >= targetTrack.notes.length ? (
+              <div style={{ marginTop: '5px', color: '#00ff00', fontWeight: 'bold' }}>
+                ✅ ALL NOTES COMPLETED!
+              </div>
+            ) : (
+              showNextNote && (
+                <div style={{ marginTop: '5px', color: '#00ff00' }}>
+                  Next: {targetTrack.notes[currentNoteIndex]?.note}
+                </div>
+              )
+            )}
+            {wrongNoteMessage && (
+              <div style={{ marginTop: '5px', color: '#ff0064', fontWeight: 'bold' }}>
+                {wrongNoteMessage}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -827,35 +966,35 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
             textAlign: 'center',
           }}
         >
-          {isRecording ? '🎤 RECORDING - PLAY THE INSTRUMENT' : '🎹 INSTRUMENT'}
+          {isListening ? '🎯 PLAY THE NOTES TO MATCH THE TARGET' : '🎹 INSTRUMENT'}
         </div>
         <div
           style={{
             background: '#1a1a1a',
             padding: '15px',
             borderRadius: '8px',
-            border: isRecording ? '3px solid #ff6b6b' : '3px solid #333',
+            border: isListening ? '3px solid #ff6600' : '3px solid #333',
             transition: 'border-color 0.3s',
           }}
         >
           {instrument === 'drums' && (
             <DrumKit
               onNotePlay={(note, velocity) => handleNotePlay(note, velocity)}
-              isRecording={isRecording}
+              isRecording={isListening}
               activeNotes={activeNotes as Set<DrumType>}
             />
           )}
           {instrument === 'piano' && (
             <Piano
               onNotePlay={handleNotePlay}
-              isRecording={isRecording}
+              isRecording={isListening}
               activeNotes={activeNotes}
             />
           )}
           {instrument === 'bass' && (
             <Bass
               onNotePlay={handleNotePlay}
-              isRecording={isRecording}
+              isRecording={isListening}
               activeNotes={activeNotes}
               selectedFret={0}
             />
@@ -863,7 +1002,7 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
           {instrument === 'synth' && (
             <Synth
               onNotePlay={handleNotePlay}
-              isRecording={isRecording}
+              isRecording={isListening}
               activeNotes={activeNotes}
             />
           )}
@@ -887,9 +1026,9 @@ export const ReplicationChallenge: React.FC<ReplicationChallengeProps> = ({
           📖 HOW TO PLAY
         </div>
         <div>1. CLICK "PLAY TARGET" TO HEAR THE ORIGINAL</div>
-        <div>2. CLICK "START RECORDING" TO BEGIN YOUR ATTEMPT</div>
-        <div>3. PLAY THE INSTRUMENT ABOVE TO REPLICATE THE PATTERN</div>
-        <div>4. CLICK "STOP RECORDING" WHEN DONE</div>
+        <div>2. CLICK "START CHALLENGE" TO BEGIN</div>
+        <div>3. PLAY THE NOTES ON THE INSTRUMENT TO MATCH THE TARGET</div>
+        <div>4. CHALLENGE COMPLETES AUTOMATICALLY WHEN ALL NOTES ARE PLAYED</div>
       </div>
 
       {/* Challenge Mode Indicator */}
